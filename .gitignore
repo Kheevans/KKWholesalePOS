@@ -1,0 +1,18 @@
+.vs/
+**/bin/
+**/obj/
+TestResults/
+*.user
+*.suo
+
+# Local databases and SQLite journal files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Secrets and local configuration
+.env
+.env.*
+appsettings.Development.json

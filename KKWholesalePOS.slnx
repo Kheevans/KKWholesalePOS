@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="KKWholesalePOS.Core/KKWholesalePOS.Core.csproj" />
+  <Project Path="KKWholesalePOS.Data/KKWholesalePOS.Data.csproj" />
+  <Project Path="KKWholesalePOS.Tests/KKWholesalePOS.Tests.csproj" />
+  <Project Path="KKWholesalePOS.UI/KKWholesalePOS.UI.csproj" />
+</Solution>
