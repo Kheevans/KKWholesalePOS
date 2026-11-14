@@ -1,17 +1,72 @@
+using KKWholesalePOS.Core.Services;
+using KKWholesalePOS.Data;
+using KKWholesalePOS.Data.Repositories;
+
 namespace KKWholesalePOS.UI
 {
     internal static class Program
     {
-        /// <summary>
-        ///  The main entry point for the application.
-        /// </summary>
         [STAThread]
         static void Main()
         {
-            // To customize application configuration such as set high DPI settings or default font,
-            // see https://aka.ms/applicationconfiguration.
             ApplicationConfiguration.Initialize();
-            Application.Run(new Form1());
+
+            using var dbContext = new AppDbContext();
+
+            // Repositories
+            var userRepository = new UserRepository(dbContext);
+            var roleRepository = new RoleRepository(dbContext);
+            var auditLogRepository = new AuditLogRepository(dbContext);
+
+            // Core services
+            var passwordService = new PasswordService();
+
+            var userManagementService = new UserManagementService(
+                userRepository,
+                passwordService);
+
+            var roleManagementService = new RoleManagementService(
+                roleRepository,
+                userRepository);
+
+            var auditLogService = new AuditLogService(
+                auditLogRepository);
+
+            var initialSetupService = new InitialSetupService(
+                userRepository,
+                userManagementService,
+                roleManagementService,
+                auditLogService);
+
+            // Initial administrator setup
+            if (!userRepository.HasAnyUsers())
+            {
+                using var setupForm = new SetupForm(initialSetupService);
+
+                if (setupForm.ShowDialog() != DialogResult.OK)
+                {
+                    return;
+                }
+            }
+
+            // Authentication
+            var authenticationService = new AuthenticationService(
+                userRepository,
+                passwordService);
+
+            var userSession = new UserSessionService();
+
+            var loginService = new LoginService(
+                authenticationService,
+                userSession,
+                auditLogService);
+
+            using var loginForm = new LoginForm(loginService);
+
+            if (loginForm.ShowDialog() == DialogResult.OK)
+            {
+                Application.Run(new MainForm(userSession, loginService));
+            }
         }
     }
 }
