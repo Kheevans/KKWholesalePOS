@@ -1,4 +1,6 @@
 ﻿
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Services;
 using System.Drawing;
 
@@ -8,7 +10,7 @@ namespace KKWholesalePOS.UI
     {
         private readonly UserSessionService _userSession;
         private readonly LoginService _loginService;
-
+        private readonly ICustomerRepository _customerRepository;
         private readonly Color _normalButtonColor =
             Color.FromArgb(31, 41, 55);
 
@@ -16,19 +18,23 @@ namespace KKWholesalePOS.UI
             Color.FromArgb(59, 130, 246);
 
         public MainForm(
-            UserSessionService userSession,
-            LoginService loginService)
+    UserSessionService userSession,
+    LoginService loginService,
+    ICustomerRepository customerRepository)
         {
             InitializeComponent();
+
+            _userSession = userSession;
+            _loginService = loginService;
+            _customerRepository = customerRepository;
+
             ConfigureReportFilters();
+            LoadCustomers();
 
             cmbReportType.SelectedIndexChanged += cmbReportType_SelectedIndexChanged;
 
             dtpStartDate.ValueChanged += dtpStartDate_ValueChanged;
             dtpEndDate.ValueChanged += dtpEndDate_ValueChanged;
-
-            _userSession = userSession;
-            _loginService = loginService;
 
             // Logout
             btnLogout.Click += btnLogout_Click;
@@ -46,6 +52,17 @@ namespace KKWholesalePOS.UI
                 pnlDashboard,
                 "Dashboard",
                 btnDashboard);
+        }
+
+        private void LoadCustomers()
+        {
+            var customers = _customerRepository.GetAll();
+
+            cmbCustomer.DataSource = null;
+            cmbCustomer.DisplayMember = nameof(Customer.Name);
+            cmbCustomer.ValueMember = nameof(Customer.Id);
+            cmbCustomer.DataSource = customers;
+            cmbCustomer.SelectedIndex = -1;
         }
 
         private void ConfigureReportFilters()
