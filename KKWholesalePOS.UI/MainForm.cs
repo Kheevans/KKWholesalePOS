@@ -1,6 +1,5 @@
 ﻿
 using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Reports;
 using KKWholesalePOS.Core.Services;
 using System.Drawing.Printing;
@@ -12,6 +11,7 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Drawing;
+using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.UI
 {

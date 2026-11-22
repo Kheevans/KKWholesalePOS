@@ -1,4 +1,4 @@
-﻿namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Others;
 
 public class Customer
 {

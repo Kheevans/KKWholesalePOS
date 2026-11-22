@@ -1,5 +1,4 @@
-﻿
-namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Sales;
 
 public class SaleRequestLine
 {

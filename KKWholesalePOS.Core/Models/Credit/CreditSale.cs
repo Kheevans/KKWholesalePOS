@@ -1,5 +1,4 @@
-﻿
-namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Credit;
 
 public class CreditSale
 {
@@ -10,6 +9,8 @@ public class CreditSale
     public int UserId { get; set; }
 
     public DateTime IssuedAt { get; set; } = DateTime.UtcNow;
+
+    public DateTime DueDate { get; set; }
 
     public decimal PurchaseAmount { get; set; }
 

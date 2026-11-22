@@ -1,4 +1,4 @@
-﻿using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Others;
 using Microsoft.AspNetCore.Identity;
 
 namespace KKWholesalePOS.Core.Services;

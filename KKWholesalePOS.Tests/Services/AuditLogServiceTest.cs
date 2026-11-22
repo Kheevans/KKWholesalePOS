@@ -1,8 +1,8 @@
 ﻿using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
-namespace KKWholesalePOS.Tests;
+namespace KKWholesalePOS.Tests.Services;
 
 public class AuditLogServiceTests
 {

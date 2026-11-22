@@ -1,4 +1,4 @@
-﻿using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Inventory;
 using KKWholesalePOS.Data;
 using Microsoft.EntityFrameworkCore;
 
