@@ -24,12 +24,17 @@ namespace KKWholesalePOS.UI
             var reportingRepository = new ReportingRepository(dbContext);
             var regularSaleRepository = new RegularSaleRepository(dbContext);
             var dashboardRepository = new DashboardRepository(dbContext);
+            var permissionRepository = new PermissionRepository(dbContext);
 
             // Core services
             var passwordService = new PasswordService();
             var reportingService = new ReportingService(reportingRepository);
             var regularSaleService = new RegularSaleService(regularSaleRepository);
             var dashboardService = new DashboardService(dashboardRepository);
+          
+            var permissionManagementService = new PermissionManagementService(
+                permissionRepository,
+                roleRepository);
 
             var userManagementService = new UserManagementService(
                 userRepository,
@@ -46,6 +51,7 @@ namespace KKWholesalePOS.UI
                 userRepository,
                 userManagementService,
                 roleManagementService,
+                permissionManagementService,
                 auditLogService);
 
             // Initial administrator setup
@@ -58,6 +64,9 @@ namespace KKWholesalePOS.UI
                     return;
                 }
             }
+
+            // Seed default permissions for both new and existing installations.
+            initialSetupService.EnsureDefaultPermissions();
 
             // Authentication
             var authenticationService = new AuthenticationService(
@@ -81,7 +90,11 @@ namespace KKWholesalePOS.UI
                     customerRepository,
                     reportingService,
                     regularSaleService,
-                    dashboardService));
+                    dashboardService,
+                    userManagementService,
+                    roleManagementService,
+                    permissionManagementService,
+                    auditLogService));
             }
         }
     }

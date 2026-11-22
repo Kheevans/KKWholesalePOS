@@ -8,6 +8,11 @@ public class UserManagementService
     private readonly IUserRepository _userRepository;
     private readonly PasswordService _passwordService;
 
+    public List<User> GetAllUsers()
+    {
+        return _userRepository.GetAll();
+    }
+
     public UserManagementService(
         IUserRepository userRepository,
         PasswordService passwordService)

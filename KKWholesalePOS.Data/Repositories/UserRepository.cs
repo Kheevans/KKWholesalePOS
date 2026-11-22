@@ -95,4 +95,13 @@ public class UserRepository : IUserRepository
             .Select(ur => ur.Role)
             .ToList();
     }
+
+    public List<User> GetAll()
+    {
+        return _dbContext.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .OrderBy(u => u.Username)
+            .ToList();
+    }
 }

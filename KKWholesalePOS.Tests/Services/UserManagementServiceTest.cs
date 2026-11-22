@@ -122,6 +122,11 @@ public class UserManagementServiceTests
 
     private class FakeUserRepository : IUserRepository
     {
+        public List<User> GetAll()
+        {
+            return new List<User>();
+        }
+
         public List<User> Users { get; } = new();
 
         private int _nextId = 1;

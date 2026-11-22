@@ -25,12 +25,21 @@ namespace KKWholesalePOS.UI
         private readonly System.Drawing.Color _normalButtonColor =
             System.Drawing.Color.FromArgb(31, 41, 55);
         private readonly DashboardService _dashboardService;
+        private readonly UserManagementService _userManagementService;
+        private readonly RoleManagementService _roleManagementService;
+        private readonly PermissionManagementService _permissionManagementService;
+        private readonly AuditLogService _auditLogService;
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
         private Label lblOverdueCreditValue = null!;
         private Label lblTransactionsToday = null!;
         private Label lblOutOfStockValue = null!;
+        private DataGridView _usersGrid = null!;
+        private DataGridView _rolesGrid = null!;
+        private DataGridView _permissionsGrid = null!;
+        private DataGridView _auditLogGrid = null!;
+        private Label _permissionCountLabel = null!;
         private readonly System.Drawing.Color _selectedButtonColor =
             System.Drawing.Color.FromArgb(59, 130, 246);
         private readonly PrintDocument _reportPrintDocument = new();
@@ -43,11 +52,18 @@ namespace KKWholesalePOS.UI
             ICustomerRepository customerRepository,
             ReportingService reportingService,
             RegularSaleService regularSaleService,
-            DashboardService dashboardService)
+            DashboardService dashboardService,
+            UserManagementService userManagementService,
+            RoleManagementService roleManagementService,
+            PermissionManagementService permissionManagementService,
+            AuditLogService auditLogService)
 
         {
             InitializeComponent();
+
             ConfigureDashboardLayout();
+            ConfigureUserManagementLayout();
+
             btnExportPdf.Click += btnExportPdf_Click;
             btnExportExcel.Click += btnExportExcel_Click;
             btnExportWord.Click += btnExportWord_Click;
@@ -66,8 +82,17 @@ namespace KKWholesalePOS.UI
             _customerRepository = customerRepository;
             _regularSaleService = regularSaleService;
 
-            ConfigureReportFilters();
+            _userManagementService = userManagementService;
+            _roleManagementService = roleManagementService;
+            _permissionManagementService = permissionManagementService;
+            _auditLogService = auditLogService;
+
+            LoadAuditLog();
+            LoadUsers();
+            LoadRoles();
+            LoadPermissions();
             LoadCustomers();
+            ConfigureReportFilters();
 
             cmbReportType.SelectedIndexChanged += cmbReportType_SelectedIndexChanged;
 
@@ -262,6 +287,28 @@ namespace KKWholesalePOS.UI
             btnGenerateReport.Click += btnGenerateReport_Click;
         }
 
+        private void LoadUsers()
+        {
+            _usersGrid.Rows.Clear();
+
+            var users = _userManagementService.GetAllUsers();
+
+            foreach (var user in users)
+            {
+                string roles = user.UserRoles.Any()
+                    ? string.Join(", ", user.UserRoles
+                        .Where(ur => ur.Role != null)
+                        .Select(ur => ur.Role.Name))
+                    : "No roles assigned";
+
+                _usersGrid.Rows.Add(
+                    user.Id,
+                    user.Username,
+                    roles,
+                    user.IsActive ? "Active" : "Inactive");
+            }
+        }
+
         private void cmbReportType_SelectedIndexChanged(
             object sender, EventArgs e)
         {
@@ -345,6 +392,14 @@ namespace KKWholesalePOS.UI
             string pageTitle,
             Button selectedButton)
         {
+            if (pageTitle == "User Management")
+            {
+                LoadUsers();
+                LoadRoles();
+                LoadPermissions();
+                LoadAuditLog();
+            }
+
             // Hide all pages
             pnlDashboard.Visible = false;
             pnlReports.Visible = false;
@@ -358,9 +413,14 @@ namespace KKWholesalePOS.UI
             // Update page heading
             lblPageTitle.Text = pageTitle;
 
-            lblWelcome.Text = pageTitle == "Dashboard"
-                ? "Welcome to K&K Wholesale POS"
-                : $"Manage {pageTitle.ToLower()}.";
+            lblWelcome.Text = pageTitle switch
+            {
+                "Dashboard" => "Welcome to K&K Wholesale POS",
+                "Reports" => "View and generate business reports.",
+                "User Management" => "Manage system users, roles and permissions.",
+                "Settings" => "Configure your business and system preferences.",
+                _ => string.Empty
+            };
 
             // Reset navigation button colours
             btnDashboard.BackColor = _normalButtonColor;
@@ -1192,6 +1252,1451 @@ namespace KKWholesalePOS.UI
                 MessageBox.Show(
                     $"Unable to export Word document: {ex.Message}",
                     "Word Export Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void ConfigureUserManagementLayout()
+        {
+            pnlUserManagement.Controls.Clear();
+
+            var tabControl = new TabControl
+            {
+                Dock = DockStyle.Fill,
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                Padding = new Point(15, 5)
+            };
+
+            var usersTab = new TabPage("Users")
+            {
+                Name = "tabUsers",
+                BackColor = System.Drawing.Color.White
+            };
+
+            var rolesTab = new TabPage("Roles")
+            {
+                Name = "tabRoles",
+                BackColor = System.Drawing.Color.White
+            };
+
+            var permissionsTab = new TabPage("Permissions")
+            {
+                Name = "tabPermissions",
+                BackColor = System.Drawing.Color.White
+            };
+
+            var auditLogTab = new TabPage("Audit Log")
+            {
+                Name = "tabAuditLog",
+                BackColor = System.Drawing.Color.White
+            };
+
+            tabControl.TabPages.Add(usersTab);
+            tabControl.TabPages.Add(rolesTab);
+            tabControl.TabPages.Add(permissionsTab);
+            tabControl.TabPages.Add(auditLogTab);
+
+            pnlUserManagement.Controls.Add(tabControl);
+
+            ConfigureUsersTab(usersTab);
+            ConfigureRolesTab(rolesTab);
+            ConfigurePermissionsTab(permissionsTab);
+            ConfigureAuditLogTab(auditLogTab);
+        }
+
+
+        private void ConfigureRolesTab(TabPage rolesTab)
+        {
+            rolesTab.Controls.Clear();
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(20),
+                BackColor = System.Drawing.Color.White
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+
+            var headingPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            var titleLabel = new Label
+            {
+                Text = "System Roles",
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(0, 0)
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "Create roles and manage their permissions.",
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                ForeColor = System.Drawing.Color.Gray,
+                AutoSize = true,
+                Location = new Point(2, 45)
+            };
+
+            headingPanel.Controls.Add(titleLabel);
+            headingPanel.Controls.Add(descriptionLabel);
+
+            var rolesGrid = new DataGridView
+            {
+                Name = "dgvRoles",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                BackgroundColor = System.Drawing.Color.White
+            };
+
+            rolesGrid.Columns.Add("Id", "ID");
+            rolesGrid.Columns.Add("Name", "Role Name");
+            rolesGrid.Columns.Add("Description", "Description");
+            rolesGrid.Columns.Add("Permissions", "Assigned Permissions");
+
+            rolesGrid.Columns["Id"]!.Visible = false;
+            rolesGrid.Columns["Name"]!.FillWeight = 25;
+            rolesGrid.Columns["Description"]!.FillWeight = 35;
+            rolesGrid.Columns["Permissions"]!.FillWeight = 40;
+
+            _rolesGrid = rolesGrid;
+
+            var buttonPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+
+            var createRoleButton = new Button
+            {
+                Name = "btnCreateRole",
+                Text = "Create Role",
+                Size = new System.Drawing.Size(130, 38),
+                BackColor = System.Drawing.Color.FromArgb(59, 130, 246),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var assignPermissionButton = new Button
+            {
+                Name = "btnAssignPermission",
+                Text = "Assign Permission",
+                Size = new System.Drawing.Size(150, 38),
+                BackColor = System.Drawing.Color.FromArgb(34, 139, 94),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var removePermissionButton = new Button
+            {
+                Name = "btnRemovePermission",
+                Text = "Remove Permission",
+                Size = new System.Drawing.Size(160, 38),
+                BackColor = System.Drawing.Color.FromArgb(220, 75, 75),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            buttonPanel.Controls.Add(createRoleButton);
+            buttonPanel.Controls.Add(assignPermissionButton);
+            buttonPanel.Controls.Add(removePermissionButton);
+
+            createRoleButton.Click += (sender, e) => ShowCreateRoleDialog();
+            assignPermissionButton.Click += (sender, e) => ShowAssignPermissionDialog();
+            removePermissionButton.Click += (sender, e) => ShowRemovePermissionDialog();
+
+            layout.Controls.Add(headingPanel, 0, 0);
+            layout.Controls.Add(rolesGrid, 0, 1);
+            layout.Controls.Add(buttonPanel, 0, 2);
+
+            rolesTab.Controls.Add(layout);
+        }
+
+
+        private void ConfigurePermissionsTab(TabPage permissionsTab)
+        {
+            permissionsTab.Controls.Clear();
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(20),
+                BackColor = System.Drawing.Color.White
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+
+            var headingPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            var titleLabel = new Label
+            {
+                Text = "System Permissions",
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(0, 0)
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "View all permissions available within the system.",
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                ForeColor = System.Drawing.Color.Gray,
+                AutoSize = true,
+                Location = new Point(2, 45)
+            };
+
+            headingPanel.Controls.Add(titleLabel);
+            headingPanel.Controls.Add(descriptionLabel);
+
+            var permissionsGrid = new DataGridView
+            {
+                Name = "dgvPermissions",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                BackgroundColor = System.Drawing.Color.White
+            };
+
+            permissionsGrid.Columns.Add("Id", "ID");
+            permissionsGrid.Columns.Add("Name", "Permission Name");
+            permissionsGrid.Columns.Add("Description", "Description");
+
+            permissionsGrid.Columns["Id"]!.Visible = false;
+            permissionsGrid.Columns["Name"]!.FillWeight = 35;
+            permissionsGrid.Columns["Description"]!.FillWeight = 65;
+
+            _permissionsGrid = permissionsGrid;
+
+            var footerPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            var permissionCountLabel = new Label
+            {
+                Text = "Total permissions: 0",
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                AutoSize = true,
+                Location = new Point(2, 15)
+            };
+
+            _permissionCountLabel = permissionCountLabel;
+
+            footerPanel.Controls.Add(permissionCountLabel);
+
+            layout.Controls.Add(headingPanel, 0, 0);
+            layout.Controls.Add(permissionsGrid, 0, 1);
+            layout.Controls.Add(footerPanel, 0, 2);
+
+            permissionsTab.Controls.Add(layout);
+        }
+
+
+        private void ConfigureAuditLogTab(TabPage auditLogTab)
+        {
+            auditLogTab.Controls.Clear();
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(20),
+                BackColor = System.Drawing.Color.White
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 50F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            var headingPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            var refreshButton = new Button
+            {
+                Text = "Refresh",
+                Size = new System.Drawing.Size(120, 35),
+                Location = new Point(0, 5),
+                BackColor = System.Drawing.Color.FromArgb(59, 130, 246),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var buttonPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            buttonPanel.Controls.Add(refreshButton);
+
+            refreshButton.Click += (sender, e) => LoadAuditLog();
+
+            var titleLabel = new Label
+            {
+                Text = "System Audit Log",
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(0, 0)
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "Review recorded activities and changes made within the system.",
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                ForeColor = System.Drawing.Color.Gray,
+                AutoSize = true,
+                Location = new Point(2, 45)
+            };
+
+            headingPanel.Controls.Add(titleLabel);
+            headingPanel.Controls.Add(descriptionLabel);
+
+            var auditGrid = new DataGridView
+            {
+                Name = "dgvAuditLog",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                BackgroundColor = System.Drawing.Color.White,
+                AutoGenerateColumns = false
+            };
+
+            auditGrid.Columns.Add("Timestamp", "Date & Time");
+            auditGrid.Columns.Add("Username", "Username"); 
+            auditGrid.Columns.Add("Action", "Action");
+            auditGrid.Columns.Add("EntityType", "Entity");
+            auditGrid.Columns.Add("EntityId", "Entity ID");
+            auditGrid.Columns.Add("Details", "Details");
+
+            auditGrid.Columns["Timestamp"]!.FillWeight = 20;
+            auditGrid.Columns["Username"]!.FillWeight = 10;
+            auditGrid.Columns["Action"]!.FillWeight = 20;
+            auditGrid.Columns["EntityType"]!.FillWeight = 15;
+            auditGrid.Columns["EntityId"]!.FillWeight = 10;
+            auditGrid.Columns["Details"]!.FillWeight = 35;
+
+            _auditLogGrid = auditGrid;
+
+            layout.Controls.Add(headingPanel, 0, 0);
+            layout.Controls.Add(buttonPanel, 0, 1);
+            layout.Controls.Add(auditGrid, 0, 2);
+
+            auditLogTab.Controls.Add(layout);
+        }
+
+
+        private void ShowCreateRoleDialog()
+        {
+            using var dialog = new Form
+            {
+                Text = "Create Role",
+                Size = new System.Drawing.Size(400, 300),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var nameLabel = new Label
+            {
+                Text = "Role Name:",
+                Location = new Point(20, 25),
+                AutoSize = true
+            };
+
+            var nameTextBox = new TextBox
+            {
+                Location = new Point(20, 50),
+                Width = 340
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "Description:",
+                Location = new Point(20, 90),
+                AutoSize = true
+            };
+
+            var descriptionTextBox = new TextBox
+            {
+                Location = new Point(20, 115),
+                Width = 340
+            };
+
+            var saveButton = new Button
+            {
+                Text = "Create",
+                DialogResult = DialogResult.None,
+                Location = new Point(180, 165),
+                Size = new System.Drawing.Size(85, 32)
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                DialogResult = DialogResult.Cancel,
+                Location = new Point(275, 165),
+                Size = new System.Drawing.Size(85, 32)
+            };
+
+            saveButton.Click += (sender, e) =>
+            {
+                try
+                {
+                    _roleManagementService.CreateRole(
+                        nameTextBox.Text,
+                        descriptionTextBox.Text);
+
+                    _auditLogService.LogAction(
+                        _userSession.CurrentUser!.Id,
+                        "Create Role",
+                        "Role",
+                        details: $"Created role: {nameTextBox.Text.Trim()}");
+
+                    MessageBox.Show(
+                        "Role created successfully.",
+                        "Success",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    dialog.DialogResult = DialogResult.OK;
+                    dialog.Close();
+
+                    LoadRoles();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        ex.Message,
+                        "Unable to Create Role",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]            {
+        nameLabel,
+        nameTextBox,
+        descriptionLabel,
+        descriptionTextBox,
+        saveButton,
+        cancelButton
+            });
+
+            dialog.AcceptButton = saveButton;
+            dialog.CancelButton = cancelButton;
+
+            dialog.ShowDialog(this);
+        }
+
+        private void LoadRoles()
+        {
+            _rolesGrid.Rows.Clear();
+
+            var roles = _roleManagementService.GetAllRoles();
+
+            foreach (var role in roles)
+            {
+                var permissions = _permissionManagementService
+                    .GetRolePermissions(role.Id);
+
+                _rolesGrid.Rows.Add(
+                    role.Id,
+                    role.Name,
+                    role.Description,
+                    string.Join(", ", permissions.Select(p => p.Name)));
+            }
+        }
+
+        private void LoadPermissions()
+        {
+            _permissionsGrid.Rows.Clear();
+
+            var permissions = _permissionManagementService.GetAllPermissions();
+
+            foreach (var permission in permissions)
+            {
+                _permissionsGrid.Rows.Add(
+                    permission.Id,
+                    permission.Name,
+                    permission.Description);
+            }
+
+            _permissionCountLabel.Text =
+                $"Total permissions: {permissions.Count}";
+        }
+
+
+        private void LoadAuditLog()
+        {
+            _auditLogGrid.Rows.Clear();
+
+            var entries = _auditLogService.GetAllEntries()
+                .OrderByDescending(entry => entry.Timestamp)
+                .ToList();
+
+            foreach (var entry in entries)
+            {
+                _auditLogGrid.Rows.Add(
+                    entry.Timestamp.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"),
+                    entry.User?.Username ?? "System",
+                    entry.Action,
+                    entry.EntityType,
+                    entry.EntityId ?? string.Empty,
+                    entry.Details ?? string.Empty);
+            }
+        }
+
+        private void ShowAssignPermissionDialog()
+        {
+            if (_rolesGrid.CurrentRow == null)
+            {
+                MessageBox.Show(
+                    "Please select a role first.",
+                    "Assign Permission",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            int roleId = Convert.ToInt32(
+                _rolesGrid.CurrentRow.Cells["Id"].Value);
+
+            string roleName = Convert.ToString(
+                _rolesGrid.CurrentRow.Cells["Name"].Value) ?? string.Empty;
+
+            var allPermissions = _permissionManagementService.GetAllPermissions();
+            var assignedPermissions = _permissionManagementService.GetRolePermissions(roleId);
+
+            var availablePermissions = allPermissions
+                .Where(p => !assignedPermissions.Any(
+                    assigned => assigned.Id == p.Id))
+                .ToList();
+
+            if (availablePermissions.Count == 0)
+            {
+                MessageBox.Show(
+                    "All available permissions have already been assigned to this role.",
+                    "Assign Permission",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            using Form dialog = new Form
+            {
+                Text = $"Assign Permission - {roleName}",
+                Size = new System.Drawing.Size(450, 350),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var permissionLabel = new Label
+            {
+                Text = "Select a permission to assign:",
+                AutoSize = true,
+                Location = new Point(20, 20)
+            };
+
+            var permissionComboBox = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(20, 55),
+                Size = new System.Drawing.Size(390, 30),
+                DataSource = availablePermissions,
+                DisplayMember = "Name",
+                ValueMember = "Id"
+            };
+
+            var descriptionLabel = new Label
+            {
+                Location = new Point(20, 100),
+                Size = new System.Drawing.Size(390, 70),
+                ForeColor = System.Drawing.Color.Gray
+            };
+
+            permissionComboBox.SelectedIndexChanged += (sender, e) =>
+            {
+                if (permissionComboBox.SelectedItem is KKWholesalePOS.Core.Models.Others.Permission selected)
+                {
+                    descriptionLabel.Text = selected.Description;
+                }
+            };
+
+            var assignButton = new Button
+            {
+                Text = "Assign",
+                Size = new System.Drawing.Size(120, 38),
+                Location = new Point(160, 240),
+                BackColor = System.Drawing.Color.FromArgb(34, 139, 94),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                Size = new System.Drawing.Size(120, 38),
+                Location = new Point(290, 240),
+                DialogResult = DialogResult.Cancel
+            };
+
+            assignButton.Click += (sender, e) =>
+            {
+                if (permissionComboBox.SelectedItem is not KKWholesalePOS.Core.Models.Others.Permission selected)
+                {
+                    MessageBox.Show("Please select a permission.");
+                    return;
+                }
+
+                try
+                {
+                    _permissionManagementService.AssignPermissionToRole(
+                        roleId, selected.Id);
+
+                    _auditLogService.LogAction(
+                        _userSession.CurrentUser!.Id,
+                        "Assign Permission",
+                        "Role",
+                        roleId.ToString(),
+                        $"Assigned permission '{selected.Name}' to role '{roleName}'.");
+
+                    LoadRoles();
+
+                    MessageBox.Show(
+                        "Permission assigned successfully.",
+                        "Success",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    dialog.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        ex.Message,
+                        "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]
+            {
+        permissionLabel,
+        permissionComboBox,
+        descriptionLabel,
+        assignButton,
+        cancelButton
+            });
+
+            dialog.AcceptButton = assignButton;
+            dialog.CancelButton = cancelButton;
+
+            dialog.ShowDialog(this);
+        }
+
+
+        private void ShowRemovePermissionDialog()
+        {
+            if (_rolesGrid.CurrentRow == null)
+            {
+                MessageBox.Show(
+                    "Please select a role first.",
+                    "Remove Permission",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            int roleId = Convert.ToInt32(
+                _rolesGrid.CurrentRow.Cells["Id"].Value);
+
+            string roleName = Convert.ToString(
+                _rolesGrid.CurrentRow.Cells["Name"].Value) ?? string.Empty;
+
+            var assignedPermissions =
+                _permissionManagementService.GetRolePermissions(roleId);
+
+            if (assignedPermissions.Count == 0)
+            {
+                MessageBox.Show(
+                    "This role does not have any assigned permissions.",
+                    "Remove Permission",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                return;
+            }
+
+            using Form dialog = new Form
+            {
+                Text = $"Remove Permission - {roleName}",
+                Size = new System.Drawing.Size(450, 350),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var permissionLabel = new Label
+            {
+                Text = "Select a permission to remove:",
+                AutoSize = true,
+                Location = new Point(20, 20)
+            };
+
+            var permissionComboBox = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(20, 55),
+                Size = new System.Drawing.Size(390, 30),
+                DataSource = assignedPermissions,
+                DisplayMember = "Name",
+                ValueMember = "Id"
+            };
+
+            var descriptionLabel = new Label
+            {
+                Location = new Point(20, 100),
+                Size = new System.Drawing.Size(390, 70),
+                ForeColor = System.Drawing.Color.Gray
+            };
+
+            permissionComboBox.SelectedIndexChanged += (sender, e) =>
+            {
+                if (permissionComboBox.SelectedItem is KKWholesalePOS.Core.Models.Others.Permission selected)
+                {
+                    descriptionLabel.Text = selected.Description;
+                }
+            };
+
+            var removeButton = new Button
+            {
+                Text = "Remove",
+                Size = new System.Drawing.Size(120, 38),
+                Location = new Point(160, 240),
+                BackColor = System.Drawing.Color.FromArgb(220, 75, 75),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                Size = new System.Drawing.Size(120, 38),
+                Location = new Point(290, 240),
+                DialogResult = DialogResult.Cancel
+            };
+
+            removeButton.Click += (sender, e) =>
+            {
+                if (permissionComboBox.SelectedItem is not KKWholesalePOS.Core.Models.Others.Permission selected)
+                {
+                    MessageBox.Show("Please select a permission.");
+                    return;
+                }
+
+                var confirmation = MessageBox.Show(
+                    $"Remove '{selected.Name}' from the '{roleName}' role?",
+                    "Confirm Removal",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (confirmation != DialogResult.Yes)
+                    return;
+
+                try
+                {
+                    _permissionManagementService.RemovePermissionFromRole(
+                        roleId, selected.Id);
+
+                    _auditLogService.LogAction(
+                        _userSession.CurrentUser!.Id,
+                        "Remove Permission",
+                        "Role",
+                        roleId.ToString(),
+                        $"Removed permission '{selected.Name}' from role '{roleName}'.");
+
+                    LoadRoles();
+
+                    MessageBox.Show(
+                        "Permission removed successfully.",
+                        "Success",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    dialog.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        ex.Message,
+                        "Error",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]
+            {
+                permissionLabel,
+                permissionComboBox,
+                descriptionLabel,
+                removeButton,
+                cancelButton
+            });
+
+            dialog.AcceptButton = removeButton;
+            dialog.CancelButton = cancelButton;
+
+            dialog.ShowDialog(this);
+        }
+
+
+        private void ConfigureUsersTab(TabPage usersTab)
+        {
+            usersTab.Controls.Clear();
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(20),
+                BackColor = System.Drawing.Color.White
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 90F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 60F));
+
+            var headingPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            var titleLabel = new Label
+            {
+                Text = "System Users",
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 18F, System.Drawing.FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(0, 0)
+            };
+
+            var descriptionLabel = new Label
+            {
+                Text = "Create accounts and manage user access.",
+                Font = new System.Drawing.Font("Segoe UI", 10F),
+                ForeColor = System.Drawing.Color.Gray,
+                AutoSize = true,
+                Location = new Point(2, 45)
+            };
+
+            headingPanel.Controls.Add(titleLabel);
+            headingPanel.Controls.Add(descriptionLabel);
+
+            var usersGrid = new DataGridView
+            {
+                Name = "dgvUsers",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                BackgroundColor = System.Drawing.Color.White
+            };
+
+            usersGrid.Columns.Add("Id", "ID");
+            usersGrid.Columns.Add("Username", "Username");
+            usersGrid.Columns.Add("Roles", "Assigned Roles");
+            usersGrid.Columns.Add("Status", "Status");
+
+            usersGrid.Columns["Id"]!.Visible = false;
+            usersGrid.Columns["Username"]!.FillWeight = 30;
+            usersGrid.Columns["Roles"]!.FillWeight = 50;
+            usersGrid.Columns["Status"]!.FillWeight = 20;
+
+            _usersGrid = usersGrid;
+
+            var buttonPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                Padding = new Padding(0, 10, 0, 0)
+            };
+
+            var createButton = new Button
+            {
+                Name = "btnCreateUser",
+                Text = "Create User",
+                Size = new System.Drawing.Size(130, 38),
+                BackColor = System.Drawing.Color.FromArgb(59, 130, 246),
+                ForeColor = System.Drawing.Color.White,
+                FlatStyle = FlatStyle.Flat
+            };
+
+            var activateButton = new Button
+            {
+                Name = "btnActivateUser",
+                Text = "Activate",
+                Size = new System.Drawing.Size(130, 38)
+            };
+
+            var deactivateButton = new Button
+            {
+                Name = "btnDeactivateUser",
+                Text = "Deactivate",
+                Size = new System.Drawing.Size(130, 38)
+            };
+
+            var assignRoleButton = new Button
+            {
+                Name = "btnAssignRole",
+                Text = "Assign Role",
+                Size = new System.Drawing.Size(130, 38)
+            };
+
+            var removeRoleButton = new Button
+            {
+                Name = "btnRemoveRole",
+                Text = "Remove Role",
+                Size = new System.Drawing.Size(150, 38)
+            };
+
+            createButton.Click += (sender, e) => ShowCreateUserDialog();
+            activateButton.Click += (sender, e) => ActivateSelectedUser();
+            deactivateButton.Click += (sender, e) => DeactivateSelectedUser();
+            assignRoleButton.Click += (sender, e) => ShowAssignRoleDialog();
+            removeRoleButton.Click += (sender, e) => ShowRemoveRoleDialog();
+
+            buttonPanel.Controls.Add(createButton);
+            buttonPanel.Controls.Add(activateButton);
+            buttonPanel.Controls.Add(deactivateButton);
+            buttonPanel.Controls.Add(assignRoleButton);
+            buttonPanel.Controls.Add(removeRoleButton);
+
+            layout.Controls.Add(headingPanel, 0, 0);
+            layout.Controls.Add(usersGrid, 0, 1);
+            layout.Controls.Add(buttonPanel, 0, 2);
+
+            usersTab.Controls.Add(layout);
+        }
+
+
+        private void ShowAssignRoleDialog()
+        {
+            if (!TryGetSelectedUserId(out int userId))
+                return;
+
+            var allRoles = _roleManagementService.GetAllRoles();
+            var assignedRoles = _roleManagementService.GetUserRoles(userId);
+
+            var availableRoles = allRoles
+                .Where(role => assignedRoles.All(
+                    assigned => assigned.Id != role.Id))
+                .ToList();
+
+            if (availableRoles.Count == 0)
+            {
+                MessageBox.Show(
+                    "There are no additional roles available to assign.",
+                    "No Available Roles",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                return;
+            }
+
+            using var dialog = new Form
+            {
+                Text = "Assign Role",
+                Size = new System.Drawing.Size(400, 200),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var roleLabel = new Label
+            {
+                Text = "Select a role:",
+                Location = new Point(20, 20),
+                AutoSize = true
+            };
+
+            var roleComboBox = new ComboBox
+            {
+                Location = new Point(20, 50),
+                Width = 340,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                DisplayMember = nameof(Role.Name),
+                ValueMember = nameof(Role.Id),
+                DataSource = availableRoles
+            };
+
+            var assignButton = new Button
+            {
+                Text = "Assign",
+                Location = new Point(190, 105),
+                Size = new System.Drawing.Size(80, 35),
+                DialogResult = DialogResult.OK
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                Location = new Point(280, 105),
+                Size = new System.Drawing.Size(80, 35),
+                DialogResult = DialogResult.Cancel
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]
+            {
+        roleLabel,
+        roleComboBox,
+        assignButton,
+        cancelButton
+            });
+
+            dialog.AcceptButton = assignButton;
+            dialog.CancelButton = cancelButton;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            if (roleComboBox.SelectedValue is not int roleId)
+                return;
+
+            try
+            {
+                _roleManagementService.AssignRoleToUser(userId, roleId);
+
+                _auditLogService.LogAction(
+                    _userSession.CurrentUser?.Id,
+                    "Assign Role",
+                    "User",
+                    userId.ToString(),
+                    $"Assigned role ID {roleId} to user ID {userId}.");
+
+                LoadUsers();
+
+                MessageBox.Show(
+                    "Role assigned successfully.",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Unable to Assign Role",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+
+        private void ShowRemoveRoleDialog()
+        {
+            if (!TryGetSelectedUserId(out int userId))
+                return;
+
+            var assignedRoles = _roleManagementService.GetUserRoles(userId);
+
+            if (assignedRoles.Count == 0)
+            {
+                MessageBox.Show(
+                    "This user does not have any assigned roles.",
+                    "No Assigned Roles",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                return;
+            }
+
+            using var dialog = new Form
+            {
+                Text = "Remove Role",
+                Size = new System.Drawing.Size(400, 200),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var roleLabel = new Label
+            {
+                Text = "Select a role to remove:",
+                Location = new Point(20, 20),
+                AutoSize = true
+            };
+
+            var roleComboBox = new ComboBox
+            {
+                Location = new Point(20, 50),
+                Width = 340,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                DisplayMember = nameof(Role.Name),
+                ValueMember = nameof(Role.Id),
+                DataSource = assignedRoles
+            };
+
+            var removeButton = new Button
+            {
+                Text = "Remove",
+                Location = new Point(190, 105),
+                Size = new System.Drawing.Size(90, 35),
+                DialogResult = DialogResult.OK
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                Location = new Point(280, 105),
+                Size = new System.Drawing.Size(90, 35),
+                DialogResult = DialogResult.Cancel
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]
+            {
+        roleLabel,
+        roleComboBox,
+        removeButton,
+        cancelButton
+            });
+
+            dialog.AcceptButton = removeButton;
+            dialog.CancelButton = cancelButton;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+                return;
+
+            if (roleComboBox.SelectedValue is not int roleId)
+                return;
+
+            var confirmation = MessageBox.Show(
+                "Are you sure you want to remove this role from the user?",
+                "Confirm Role Removal",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirmation != DialogResult.Yes)
+                return;
+
+            try
+            {
+                string roleName = assignedRoles
+                    .First(role => role.Id == roleId).Name;
+
+                _roleManagementService.RemoveRoleFromUser(userId, roleId);
+
+                _auditLogService.LogAction(
+                    _userSession.CurrentUser?.Id,
+                    "Remove Role",
+                    "User",
+                    userId.ToString(),
+                    $"Removed role '{roleName}' from user ID {userId}.");
+
+                LoadUsers();
+
+                MessageBox.Show(
+                    "Role removed successfully.",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Unable to Remove Role",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+
+        private bool TryGetSelectedUserId(out int userId)
+        {
+            userId = 0;
+
+            if (_usersGrid.CurrentRow == null)
+            {
+                MessageBox.Show(
+                    "Please select a user first.",
+                    "No User Selected",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return false;
+            }
+
+            object? value = _usersGrid.CurrentRow.Cells["Id"].Value;
+
+            if (value == null || !int.TryParse(value.ToString(), out userId))
+            {
+                MessageBox.Show(
+                    "Unable to identify the selected user.",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                return false;
+            }
+
+            return true;
+        }
+
+        private void ShowCreateUserDialog()
+        {
+            using var dialog = new Form
+            {
+                Text = "Create User",
+                Size = new System.Drawing.Size(420, 250),
+                StartPosition = FormStartPosition.CenterParent,
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                MaximizeBox = false,
+                MinimizeBox = false
+            };
+
+            var usernameLabel = new Label
+            {
+                Text = "Username",
+                Location = new Point(20, 20),
+                AutoSize = true
+            };
+
+            var usernameTextBox = new TextBox
+            {
+                Location = new Point(20, 45),
+                Width = 350
+            };
+
+            var passwordLabel = new Label
+            {
+                Text = "Password",
+                Location = new Point(20, 85),
+                AutoSize = true
+            };
+
+            var passwordTextBox = new TextBox
+            {
+                Location = new Point(20, 110),
+                Width = 350,
+                UseSystemPasswordChar = true
+            };
+
+            var createButton = new Button
+            {
+                Text = "Create",
+                Location = new Point(190, 165),
+                Size = new System.Drawing.Size(85, 35),
+                DialogResult = DialogResult.OK
+            };
+
+            var cancelButton = new Button
+            {
+                Text = "Cancel",
+                Location = new Point(285, 165),
+                Size = new System.Drawing.Size(85, 35),
+                DialogResult = DialogResult.Cancel
+            };
+
+            dialog.Controls.AddRange(new System.Windows.Forms.Control[]
+            {
+                usernameLabel,
+                usernameTextBox,
+                passwordLabel,
+                passwordTextBox,
+                createButton,
+                cancelButton
+            });
+
+            dialog.AcceptButton = createButton;
+            dialog.CancelButton = cancelButton;
+
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            try
+            {
+                var user = _userManagementService.CreateUser(
+                    usernameTextBox.Text,
+                    passwordTextBox.Text);
+
+                _auditLogService.LogAction(
+                    _userSession.CurrentUser?.Id,
+                    "Create",
+                    "User",
+                    user.Id.ToString(),
+                    $"Created user account: {user.Username}");
+
+                LoadUsers();
+
+                MessageBox.Show(
+                    "User account created successfully.",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Unable to Create User",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void DeactivateSelectedUser()
+        {
+            if (!TryGetSelectedUserId(out int userId))
+            {
+                return;
+            }
+
+            if (_userSession.CurrentUser?.Id == userId)
+            {
+                MessageBox.Show(
+                    "You cannot deactivate the account currently being used.",
+                    "Action Not Allowed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                "Are you sure you want to deactivate this user?",
+                "Confirm Deactivation",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirmation != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                _userManagementService.DeactivateUser(userId);
+
+                _auditLogService.LogAction(
+                    _userSession.CurrentUser?.Id,
+                    "Deactivate",
+                    "User",
+                    userId.ToString(),
+                    "User account deactivated.");
+
+                LoadUsers();
+
+                MessageBox.Show(
+                    "User deactivated successfully.",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Unable to Deactivate User",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void ActivateSelectedUser()
+        {
+            if (!TryGetSelectedUserId(out int userId))
+            {
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                "Are you sure you want to activate this user?",
+                "Confirm Activation",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirmation != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                _userManagementService.ActivateUser(userId);
+
+                _auditLogService.LogAction(
+                    _userSession.CurrentUser?.Id,
+                    "Activate",
+                    "User",
+                    userId.ToString(),
+                    "User account activated.");
+
+                LoadUsers();
+
+                MessageBox.Show(
+                    "User activated successfully.",
+                    "Success",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    ex.Message,
+                    "Unable to Activate User",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }

@@ -21,4 +21,6 @@ public interface IUserRepository
     void RemoveRole(int userId, int roleId);
 
     List<Role> GetUserRoles(int userId);
+
+    List<User> GetAll();
 }

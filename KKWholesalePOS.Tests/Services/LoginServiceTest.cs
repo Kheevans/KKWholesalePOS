@@ -171,6 +171,11 @@ public class LoginServiceTests
     {
         private readonly List<User> _users = new();
 
+        public List<User> GetAll()
+        {
+            return new List<User>();
+        }
+
         public User? GetByUsername(string username)
         {
             return _users.FirstOrDefault(

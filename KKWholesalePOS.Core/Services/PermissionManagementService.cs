@@ -120,4 +120,9 @@ public class PermissionManagementService
             .Select(rp => rp.Permission)
             .ToList();
     }
+
+    public List<Permission> GetAllPermissions()
+    {
+        return _permissionRepository.GetAll();
+    }
 }

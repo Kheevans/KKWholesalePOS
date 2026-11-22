@@ -7,7 +7,10 @@ public class RoleManagementService
 {
     private readonly IRoleRepository _roleRepository;
     private readonly IUserRepository _userRepository;
-
+    public List<Role> GetAllRoles()
+    {
+        return _roleRepository.GetAll();
+    }
     public RoleManagementService(
         IRoleRepository roleRepository,
         IUserRepository userRepository)

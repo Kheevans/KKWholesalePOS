@@ -124,6 +124,11 @@ public class AuthenticationServiceTests
     {
         private readonly User? _user;
 
+        public List<User> GetAll()
+        {
+            return new List<User>();
+        }
+
         public FakeUserRepository(User? user)
         {
             _user = user;

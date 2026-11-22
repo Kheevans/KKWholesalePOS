@@ -270,6 +270,11 @@ public class RoleManagementServiceTests
 
         private readonly List<Role> _roles = new();
 
+        public List<User> GetAll()
+        {
+            return new List<User>();
+        }
+
         public User? GetByUsername(string username)
         {
             return _users.FirstOrDefault(
