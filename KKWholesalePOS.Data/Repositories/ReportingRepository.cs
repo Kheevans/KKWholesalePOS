@@ -1,6 +1,6 @@
 ﻿
 using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Core.Models.Reports;
 using KKWholesalePOS.Data;
 using Microsoft.EntityFrameworkCore;

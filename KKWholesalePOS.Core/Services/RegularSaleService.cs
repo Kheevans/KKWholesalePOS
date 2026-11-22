@@ -1,6 +1,7 @@
 ﻿
 using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Sales;
 using System.Text;
 
 namespace KKWholesalePOS.Core.Services;

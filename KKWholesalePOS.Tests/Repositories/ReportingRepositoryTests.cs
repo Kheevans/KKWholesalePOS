@@ -1,5 +1,5 @@
-﻿
-using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Others;
+using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Data;
 using KKWholesalePOS.Data.Repositories;
 using Microsoft.Data.Sqlite;

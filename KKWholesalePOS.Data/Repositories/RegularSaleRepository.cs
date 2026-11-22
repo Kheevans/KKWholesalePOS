@@ -1,7 +1,9 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Sales;
 using Microsoft.EntityFrameworkCore;
+using KKWholesalePOS.Data.Services;
 
 namespace KKWholesalePOS.Data.Repositories;
 
@@ -9,9 +11,12 @@ public class RegularSaleRepository : IRegularSaleRepository
 {
     private readonly AppDbContext _dbContext;
 
+    private readonly InventoryService _inventoryService;
+
     public RegularSaleRepository(AppDbContext dbContext)
     {
         _dbContext = dbContext;
+        _inventoryService = new InventoryService(dbContext);
     }
 
     public Product? FindProduct(string barcode)
@@ -86,6 +91,7 @@ public class RegularSaleRepository : IRegularSaleRepository
         });
     }
 
+
     private RegularSale SaveSale(
         IReadOnlyList<SaleRequestLine> items,
         int cashierId,
@@ -145,15 +151,6 @@ public class RegularSaleRepository : IRegularSaleRepository
                         "The stored selling price is invalid.");
                 }
 
-                int affectedRows = _dbContext.Database.ExecuteSqlInterpolated(
-                    $"UPDATE Products SET StockQuantity = StockQuantity - {quantity} WHERE Id = {product.Id} AND StockQuantity >= {quantity}");
-
-                if (affectedRows != 1)
-                {
-                    throw new InvalidOperationException(
-                        "Not enough stock for " + product.Name + ".");
-                }
-
                 decimal lineTotal = Math.Round(
                     product.SellingPrice * quantity,
                     2,
@@ -182,18 +179,16 @@ public class RegularSaleRepository : IRegularSaleRepository
 
             foreach (RegularSaleLine line in sale.Lines)
             {
-                _dbContext.StockMovements.Add(new StockMovement
-                {
-                    RegularSaleId = sale.Id,
-                    ProductId = line.ProductId,
-                    QuantityChange = -line.Quantity,
-                    MovementType = "Regular sale",
-                    UserId = cashierId,
-                    RecordedAt = sale.CompletedAt
-                });
+                _inventoryService.ApplyStockChange(
+                    productId: line.ProductId,
+                    quantityChange: -line.Quantity,
+                    userId: cashierId,
+                    movementType: InventoryService.RegularSale,
+                    regularSaleId: sale.Id);
             }
 
             _dbContext.SaveChanges();
+
             transaction.Commit();
 
             return sale;

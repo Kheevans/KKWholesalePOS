@@ -1,17 +1,16 @@
-﻿
-namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Sales;
 
-public class CreditSaleLine
+public class RegularSaleLine
 {
     public int Id { get; set; }
 
-    public int CreditSaleId { get; set; }
+    public int RegularSaleId { get; set; }
 
     public int ProductId { get; set; }
 
-    public string ProductName { get; set; } = string.Empty;
-
     public string Barcode { get; set; } = string.Empty;
+
+    public string ProductName { get; set; } = string.Empty;
 
     public decimal UnitPrice { get; set; }
 

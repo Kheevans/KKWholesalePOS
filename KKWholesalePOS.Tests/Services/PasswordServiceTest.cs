@@ -1,4 +1,4 @@
-﻿using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
 namespace KKWholesalePOS.Tests.Services;

@@ -1,5 +1,4 @@
-﻿
-namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Credit;
 
 public class CreditPayment
 {

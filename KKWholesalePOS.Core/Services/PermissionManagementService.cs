@@ -1,5 +1,6 @@
 ﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
 

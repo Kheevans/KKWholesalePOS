@@ -1,5 +1,6 @@
 ﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Others;
 using Microsoft.EntityFrameworkCore;
 
 namespace KKWholesalePOS.Data.Repositories;

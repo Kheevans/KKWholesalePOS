@@ -1,4 +1,4 @@
-﻿namespace KKWholesalePOS.Core.Models;
+﻿namespace KKWholesalePOS.Core.Models.Inventory;
 
 public class Product
 {
@@ -13,4 +13,6 @@ public class Product
     public int StockQuantity { get; set; }
 
     public int UnitsPerCase { get; set; } = 1;
+
+    public int MinimumStockLevel { get; set; } = 0;
 }
