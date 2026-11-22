@@ -1,9 +1,8 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Services;
 
-namespace KKWholesalePOS.Tests;
+namespace KKWholesalePOS.Tests.Services;
 
 public class PermissionManagementServiceTests
 {

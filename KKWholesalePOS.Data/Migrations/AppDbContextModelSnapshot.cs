@@ -96,6 +96,9 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Property<int>("CustomerId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("TEXT");
 

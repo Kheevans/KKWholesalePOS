@@ -1,5 +1,6 @@
 ﻿
 using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Reports;
 using KKWholesalePOS.Data;
 using Microsoft.EntityFrameworkCore;
@@ -64,13 +65,99 @@ public class ReportingRepository : IReportingRepository
     }
 
 
+
+
     public CreditStatementResult GetCreditStatement(
         int customerId,
         DateTime startDate,
         DateTime endDate)
     {
-        throw new NotImplementedException(
-            "Credit reporting will be implemented after the credit module is integrated.");
+        DateTime startLocal = DateTime.SpecifyKind(
+            startDate.Date, DateTimeKind.Local);
+
+        DateTime endLocalExclusive = DateTime.SpecifyKind(
+            endDate.Date.AddDays(1), DateTimeKind.Local);
+
+        DateTime startUtc = startLocal.ToUniversalTime();
+        DateTime endUtc = endLocalExclusive.ToUniversalTime();
+
+        string? customerName = _dbContext.Customers
+            .AsNoTracking()
+            .Where(c => c.Id == customerId)
+            .Select(c => c.Name)
+            .SingleOrDefault();
+
+        if (customerName == null)
+        {
+            throw new InvalidOperationException(
+                "The selected customer could not be found.");
+        }
+
+        // Retrieve purchases issued before the end of the period.
+        var sales = _dbContext.CreditSales
+            .AsNoTracking()
+            .Where(s =>
+                s.CustomerId == customerId &&
+                s.IssuedAt < endUtc)
+            .OrderBy(s => s.IssuedAt)
+            .Select(s => new
+            {
+                s.Id,
+                s.IssuedAt,
+                s.DueDate,
+                s.ReferenceNumber,
+                s.PurchaseAmount,
+                s.CreditFee
+            })
+            .ToList();
+
+        var saleIds = sales.Select(s => s.Id).ToList();
+
+        var payments = saleIds.Count == 0
+            ? new List<CreditPayment>()
+            : _dbContext.CreditPayments
+                .AsNoTracking()
+                .Where(p =>
+                    saleIds.Contains(p.CreditSaleId) &&
+                    p.PaymentDate < endUtc)
+                .ToList();
+
+        var paymentTotals = payments
+            .GroupBy(p => p.CreditSaleId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(p => p.Amount));
+
+        var rows = sales
+            .Select(sale =>
+            {
+                paymentTotals.TryGetValue(
+                    sale.Id, out decimal totalPayments);
+
+                return new CreditStatementRow
+                {
+                    CreditSaleId = sale.Id,
+                    TransactionDate = sale.IssuedAt.ToLocalTime(),
+                    DueDate = sale.DueDate,
+                    ReferenceNumber = sale.ReferenceNumber,
+                    PurchaseAmount = sale.PurchaseAmount,
+                    CreditFee = sale.CreditFee,
+                    Payments = totalPayments
+                };
+            })
+            .Where(row =>
+                row.TransactionDate.Date >= startDate.Date ||
+                row.OutstandingBalance > 0)
+            .ToList();
+
+        return new CreditStatementResult
+        {
+            CustomerId = customerId,
+            CustomerName = customerName,
+            StartDate = startDate.Date,
+            EndDate = endDate.Date,
+            Transactions = rows
+        };
     }
 
     public ConsignmentStatementResult GetConsignmentStatement(
