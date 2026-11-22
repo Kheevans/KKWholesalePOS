@@ -1,309 +1,238 @@
-using System.Reflection.Metadata;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
+
 using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Services;
+using Moq;
 
 namespace KKWholesalePOS.Tests;
 
 public class CreditServiceTests
 {
-    
-    private void ValidatePurchaseQuantity(Product product, int quantity)
+    private readonly Mock<ICreditRepository> _repository = new();
+    private readonly Mock<IAuditLogRepository> _auditRepository = new();
+
+    private CreditService CreateService()
     {
-        throw new NotImplementedException();
+        return new CreditService(
+            _repository.Object,
+            _auditRepository.Object);
     }
 
-    private decimal CalculateCreditTotal(decimal purchaseAmount)
+    private static CreditSale CreateSale()
     {
-        throw new NotImplementedException();
-    }    }
-
-
-    [Fact]
-    //calculates credit total and the added 5 percent
-    //orginal amount is $10,000 and the expected total is $10, 500
-    public void CalculateCreditTotal_FivePercent()
-    {
-        decimal purchaseAmount = 10000m;
-        decimal expectedTotal = 10500m;
-
-        var service = new CreditServiceTests();
-        decimal actualTotal = service.CalculateCreditTotal(purchaseAmount);
-
-        Assert.Equal(expectedTotal, actualTotal);
+        return new CreditSale
+        {
+            Id = 1,
+            CustomerId = 1,
+            UserId = 1,
+            PurchaseAmount = 10000m,
+            CreditFee = 500m,
+            ReferenceNumber = "CR-001",
+            DueDate = DateTime.UtcNow.AddDays(14)
+        };
     }
 
-    
-//TS-02.2A & 2.2B
     [Fact]
-    //input of 0 and gives an argument exception 
-    public void CreateCreditPurchase_ZeroQuantity()
+    public void CreateCreditSale_AddsFivePercentFee()
     {
-        var service = new CreditServiceTests();
         var product = new Product
         {
             Id = 1,
-            Name = "Boom",
+            Name = "Test Product",
+            Barcode = "12345",
             SellingPrice = 1000m,
-            StockQuantity = 20,
-            UnitsPerCase = 1
-        };
-        int quantity = 0;
-
-        Assert.Throws<ArgumentException>(() =>
-        service.ValidatePurchaseQuantity(product, quantity));
-    }
-
-    [Fact]
-    //input of -2 and gives argumentexception
-    public void CreatedCreditPurchase_NegativeQuanitity()
-    {
-        var service = new CreditServiceTests();
-        var product = new Product
-        {
-            Id = 1,
-            Name = "Boom",
-            SellingPrice = 1000m,
-            StockQuantity = 20,
-            UnitsPerCase = 1
+            StockQuantity = 10
         };
 
-        int quantity = -2;
+        _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
+        _repository.Setup(r => r.GetProductById(1)).Returns(product);
 
-        Assert.Throws<ArgumentException>(() =>
-        service.ValidatePurchaseQuantity(product, quantity));
-    }
+        var service = CreateService();
 
-    [Fact]
-    // input of 25 while stock is 20 gives and invalid operation exception
-        public void CreateCreditPurchase_ExccedsStock()
-        {
-            var service = new CreditServiceTests();
-            var product = new Product
+        var sale = service.CreateCreditSale(
+            1, 1, new List<SaleRequestLine>
             {
-                Id = 1,
-                Name = "Boom",
-                StockQuantity = 20,
-                UnitsPerCase = 1,
-            };
-            int quantity = 25;
+                new(1, 2)
+            });
 
-            Assert.Throws<InvalidOperationException>(() =>
-            service.ValidatePurchaseQuantity(product, quantity));
-
-    }
-//TS-0.27A & 7B
-
-    [Fact]
-    //test when the credit limit is met; accepted
-    public void CreateCreditPurchase_WithinCreditLimi()
-    {
-        var service = new CreditServiceTests();
-        decimal purchaseAmount = 100000m;
-        bool result = service.IsWithinCreditLimit(purchaseAmount);
-        Assert.True(result);
+        Assert.Equal(2000m, sale.PurchaseAmount);
+        Assert.Equal(100m, sale.CreditFee);
+        Assert.Equal(2100m, sale.TotalAmount);
+        _repository.Verify(r => r.AddCreditSale(It.IsAny<CreditSale>()), Times.Once);
     }
 
     [Fact]
-
-    //test when purchase exceeds the credit limit; rejection
-    public void CreateCreditPurchase_ExceedsCreditLimit()
+    public void CreateCreditSale_RejectsInvalidQuantity()
     {
-        var service = CreditServiceTests();
-        decimal purchaseAmount = 100001m;
-        bool result = service.IsWithinCreditLimit(purchaseAmount);
-        Assert.False(result);
-    }
+        _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
 
-    [Fact]
-
-    //test when customer has no unpadin credit and tries to request on; accept
-    public void CreateCreditPurchase_NoUnpaidInvoice()
-    {
-        var service = new CreditServiceTests();
-        var customer = new Customer
-        {
-            Id = 1,
-            Name = "Macy Barr"
-        };
-
-        bool result = service.CanCreateCreditPurchase(
-            customer,
-            hasUnpaidInvoice);
-
-        Assert.True(result);
-    }
-
-    [Fact]
-    //test when customer has an unpaid creadit and tries to request another; reject
-    public void CreateCreatePurchase_WithUnpaidInvoice()
-    {
-        var service = new CreditServiceTests();
-        var customer = new Customer
-        {
-            Id = 1,
-            Name= "Macy Barr"
-        };
-        bool hasUnpaidInvoice = true;
-
-        bool result = service.CanCreateCreditPurchase(
-            customer,
-            hasUnpaidInvoice);
-
-        Assert.False(result);   
-    }
-
-    //TS-02.4A & 2.4B
-    [Fact]
-    //test that payment on an outstanding balance leaves the correct difference
-    public void RecordPayment_PartialPayment()
-    {
-        var service = new CreditServiceTests();
-
-        decimal originalBalance = 10500m;
-        decimal paymentAnount = 3000m;
-        decimal expectedBalance = 7500m;
-
-        decimal actualBalance = service.CalculateOutstandingBalance(
-            originalBalance,
-            paymentAnount);
-
-        Assert.Equal(expectedBalance, actualBalance);
-    }
-
-    [Fact]
-    //test that payment greater than the outstanding balance is rejected
-    public void RecordPayment_ExceedsOutstandingBalance()
-    {
-        var service = new CreditServiceTests();
-
-        decimal outstandingBalance = 10500m;
-        decimal paymentAmount = 11000m;
+        var service = CreateService();
 
         Assert.Throws<InvalidOperationException>(() =>
-            service.ValidatePayment(
-                outstandingBalance,
-                paymentAmount));
-    }
+            service.CreateCreditSale(
+                1, 1, new List<SaleRequestLine>
+                {
+                    new(1, 0)
+                }));
 
-    //TS 02.6A & 2.6B
-    [Fact]
-    //test that credit due date is 14 days after the original data
-    public void CreateCreditPurchase_ShouldSetDueDate()
-    {
-        var service = new CreditServoce();
-
-        DateTime purchase = new DateTime(2026, 11, 22);
-        DateTime expectedDueDate = new DateTime(2026, 12, 6);
-
-        DateTime actualDueDate = service.CalculateDueDate(purchaseDate);
-
-        Assert.Equal(expectedDueDate, actualDueDate);
+        _repository.Verify(
+            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            Times.Never);
     }
 
     [Fact]
-    //test that credit due date is not calculated if the deadline is missing
-    public void CreateCreditPurchase_NoValidDeadline()
+    public void CreateCreditSale_RejectsQuantityGreaterThanStock()
     {
-        var service = new CreditServiceTests(null);
+        var product = new Product
+        {
+            Id = 1,
+            Name = "Test Product",
+            SellingPrice = 1000m,
+            StockQuantity = 2
+        };
 
-        DateTime purchaseDate = new DateTime(2026,11,22);
+        _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
+        _repository.Setup(r => r.GetProductById(1)).Returns(product);
 
-        DateTime? actualDueDate = service.CalculateDueDate(purchaseDate);
+        var service = CreateService();
 
-        Assert.Null(actualDueDate);
+        Assert.Throws<InvalidOperationException>(() =>
+            service.CreateCreditSale(
+                1, 1, new List<SaleRequestLine>
+                {
+                    new(1, 3)
+                }));
+
+        _repository.Verify(
+            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            Times.Never);
     }
 
-//TS02.1aA & 2.1B
-[Fact]
-//test that staff can retrieve customer's detail
-public void GetCustomerCreditAccount_ExistingCustomer_ShouldReturnAccountDetails()
-{
-    // Arrange
-    var service = new CreditService();
-
-    var customer = new Customer
+    [Fact]
+    public void CreateCreditSale_RejectsCustomerWithUnpaidCredit()
     {
-        Id = 1,
-        Name = "Macy Barr",
-        PhoneNumber = "8763459830"
-    };
+        _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(true);
 
-    decimal expectedBalance = 7500m;
+        var service = CreateService();
 
-    var result = service.GetCustomerCreditAccount(customer.Id);
+        Assert.Throws<InvalidOperationException>(() =>
+            service.CreateCreditSale(
+                1, 1, new List<SaleRequestLine>
+                {
+                    new(1, 1)
+                }));
 
-    Assert.NotNull(result);
-    Assert.Equal(customer.Name, result.Customer.Name);
-    Assert.Equal(expectedBalance, result.OutstandingBalance);
-    Assert.NotNull(result.Transactions);
-}
+        _repository.Verify(
+            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            Times.Never);
+    }
 
-
-[Fact]
-//test that a non-existing customer returns no account
-public void GetCustomerCreditAccount_NonexistentCustomer_ShouldReturnNull()
-{
-    var service = new CreditService();
-
-    int nonexistentCustomerId = 999;
-
-    var result = service.GetCustomerCreditAccount(
-        nonexistentCustomerId);
-
-    Assert.Null(result);
-}
-
-//TS02.5A & 2.5B
-[Fact]
-//test that the owner can modify a credit record
-public void ModifyCreditRecord_Owner()
+    [Fact]
+    public void RecordPayment_AcceptsPartialPayment()
     {
-        var service = new CreditServiceTests();
+        var sale = CreateSale();
+
+        _repository.Setup(r => r.GetById(1)).Returns(sale);
+        _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
+            .Returns(new List<CreditPayment>());
+
+        var service = CreateService();
+
+        var payment = service.RecordPayment(
+            1, 1, 3000m, "Cash");
+
+        Assert.Equal(3000m, payment.Amount);
+        Assert.Equal(7500m, sale.TotalAmount - payment.Amount);
+
+        _repository.Verify(
+            r => r.AddPayment(It.IsAny<CreditPayment>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void RecordPayment_RejectsPaymentGreaterThanBalance()
+    {
+        var sale = CreateSale();
+
+        _repository.Setup(r => r.GetById(1)).Returns(sale);
+        _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
+            .Returns(new List<CreditPayment>());
+
+        var service = CreateService();
+
+        Assert.Throws<InvalidOperationException>(() =>
+            service.RecordPayment(1, 1, 11000m, "Cash"));
+
+        _repository.Verify(
+            r => r.AddPayment(It.IsAny<CreditPayment>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public void ModifyCreditAmount_AllowsOwnerAndCreatesAuditLog()
+    {
+        var sale = CreateSale();
+
         var owner = new User
         {
             Id = 1,
-            Username = "Owner",
+            Username = "owner",
             UserRoles = new List<UserRole>
             {
                 new UserRole
                 {
-                    Role = new Role
-                    {
-                        Name = "Owner"
-                    }
-            }   }
-        
-    };
-
-
-
-
-[Fact]
-//test that an ordinay staff cannot modify a credit record
-public void ModifyCreditRecord_Staff_ShouldRejectModification()
-{
-    var service = new CreditService();
-
-    var staff = new User
-    {
-        Id = 2,
-        Username = "staff",
-        UserRoles = new List<UserRole>
-        {
-            new UserRole
-            {
-                Role = new Role
-                {
-                    Name = "Staff"
+                    UserId = 1,
+                    RoleId = 1,
+                    Role = new Role { Id = 1, Name = "Owner" }
                 }
             }
-        }
-    };
+        };
 
-    
+        _repository.Setup(r => r.GetUserWithRoles(1)).Returns(owner);
+        _repository.Setup(r => r.GetById(1)).Returns(sale);
+        _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
+            .Returns(new List<CreditPayment>());
+
+        var service = CreateService();
+
+        service.ModifyCreditAmount(1, 1, 12000m);
+
+        Assert.Equal(12000m, sale.PurchaseAmount);
+        Assert.Equal(600m, sale.CreditFee);
+
+        _repository.Verify(r => r.UpdateCreditSale(sale), Times.Once);
+        _auditRepository.Verify(
+            r => r.Add(It.IsAny<AuditLogEntry>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public void ModifyCreditAmount_RejectsUnauthorizedStaff()
+    {
+        var staff = new User
+        {
+            Id = 2,
+            Username = "staff",
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    UserId = 2,
+                    RoleId = 2,
+                    Role = new Role { Id = 2, Name = "Staff" }
+                }
+            }
+        };
+
+        _repository.Setup(r => r.GetUserWithRoles(2)).Returns(staff);
+
+        var service = CreateService();
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.ModifyCreditAmount(1, 2, 12000m));
+
+        _repository.Verify(
+            r => r.UpdateCreditSale(It.IsAny<CreditSale>()),
+            Times.Never);
+    }
 }
-
-

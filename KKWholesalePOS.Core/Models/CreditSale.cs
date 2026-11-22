@@ -11,6 +11,9 @@ public class CreditSale
 
     public DateTime IssuedAt { get; set; } = DateTime.UtcNow;
 
+    //for storing the due date for credit payment
+    public DateTime DueDate {get; set;}
+
     public decimal PurchaseAmount { get; set; }
 
     public decimal CreditFee { get; set; }
