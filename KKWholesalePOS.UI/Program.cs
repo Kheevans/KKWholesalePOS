@@ -23,12 +23,14 @@ namespace KKWholesalePOS.UI
             var customerRepository = new CustomerRepository(dbContext);
             var reportingRepository = new ReportingRepository(dbContext);
             var regularSaleRepository = new RegularSaleRepository(dbContext);
+            var dashboardRepository = new DashboardRepository(dbContext);
 
             // Core services
             var passwordService = new PasswordService();
             var reportingService = new ReportingService(reportingRepository);
             var regularSaleService = new RegularSaleService(regularSaleRepository);
-            
+            var dashboardService = new DashboardService(dashboardRepository);
+
             var userManagementService = new UserManagementService(
                 userRepository,
                 passwordService);
@@ -78,7 +80,8 @@ namespace KKWholesalePOS.UI
                     loginService,
                     customerRepository,
                     reportingService,
-                    regularSaleService));
+                    regularSaleService,
+                    dashboardService));
             }
         }
     }

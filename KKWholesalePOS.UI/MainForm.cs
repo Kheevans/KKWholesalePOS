@@ -24,21 +24,30 @@ namespace KKWholesalePOS.UI
         private readonly RegularSaleService _regularSaleService;
         private readonly System.Drawing.Color _normalButtonColor =
             System.Drawing.Color.FromArgb(31, 41, 55);
-
+        private readonly DashboardService _dashboardService;
+        private Label lblOutstandingCreditValue = null!;
+        private Label lblOutstandingConsignmentValue = null!;
+        private Label lblLowStockValue = null!;
+        private Label lblOverdueCreditValue = null!;
+        private Label lblTransactionsToday = null!;
+        private Label lblOutOfStockValue = null!;
         private readonly System.Drawing.Color _selectedButtonColor =
             System.Drawing.Color.FromArgb(59, 130, 246);
         private readonly PrintDocument _reportPrintDocument = new();
         private int _printRowIndex;
-        private SalesReportResult? _currentSalesReport;
+        private string _currentReportName = "Report";
 
         public MainForm(
             UserSessionService userSession,
             LoginService loginService,
             ICustomerRepository customerRepository,
             ReportingService reportingService,
-            RegularSaleService regularSaleService)
+            RegularSaleService regularSaleService,
+            DashboardService dashboardService)
+
         {
             InitializeComponent();
+            ConfigureDashboardLayout();
             btnExportPdf.Click += btnExportPdf_Click;
             btnExportExcel.Click += btnExportExcel_Click;
             btnExportWord.Click += btnExportWord_Click;
@@ -50,6 +59,7 @@ namespace KKWholesalePOS.UI
 
             btnPrintReport.Click += btnPrintReport_Click;
             _reportingService = reportingService;
+            _dashboardService = dashboardService;
 
             _userSession = userSession;
             _loginService = loginService;
@@ -80,6 +90,141 @@ namespace KKWholesalePOS.UI
                 pnlDashboard,
                 "Dashboard",
                 btnDashboard);
+
+            LoadDashboardSummary();
+        }
+
+
+        private void ConfigureDashboardLayout()
+        {
+            tlpDashboardCards.SuspendLayout();
+
+            tlpDashboardCards.Controls.Clear();
+            tlpDashboardCards.ColumnStyles.Clear();
+            tlpDashboardCards.RowStyles.Clear();
+
+            tlpDashboardCards.ColumnCount = 3;
+            tlpDashboardCards.RowCount = 3;
+
+            // Sales Today card layout
+            lblSalesTodayTitle.Location = new System.Drawing.Point(20, 8);
+
+            lblSalesTodayValue.Location = new System.Drawing.Point(20, 32);
+            lblSalesTodayValue.Font = new System.Drawing.Font(
+                "Segoe UI", 24F, System.Drawing.FontStyle.Bold);
+
+            lblTransactionsToday = new Label
+            {
+                AutoSize = true,
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 9F, System.Drawing.FontStyle.Regular),
+                ForeColor = System.Drawing.Color.FromArgb(107, 114, 128),
+                Location = new System.Drawing.Point(20, 95),
+                Text = "0 transactions"
+            };
+
+            pnlSalesToday.Controls.Add(lblTransactionsToday);
+            lblTransactionsToday.BringToFront();
+
+            for (int i = 0; i < 3; i++)
+            {
+                tlpDashboardCards.ColumnStyles.Add(
+                    new ColumnStyle(SizeType.Percent, 33.333F));
+
+                tlpDashboardCards.RowStyles.Add(
+                    new RowStyle(SizeType.Percent, 33.333F));
+            }
+
+            Panel[] existingCards =
+            {
+                pnlTotalProducts,
+                pnlActiveCustomers,
+                pnlSalesToday,
+                pnlPendingConsignments
+            };
+
+            foreach (Panel card in existingCards)
+            {
+                card.Dock = DockStyle.Fill;
+                card.Margin = new Padding(8);
+            }
+
+            lblActiveCustomersTitle.Text = "Total Customers";
+            lblPendingConsignmentsTitle.Text = "Unsettled Consignments";
+
+            // Add existing cards
+            tlpDashboardCards.Controls.Add(pnlTotalProducts, 0, 0);
+            tlpDashboardCards.Controls.Add(pnlActiveCustomers, 1, 0);
+            tlpDashboardCards.Controls.Add(pnlSalesToday, 2, 0);
+            tlpDashboardCards.Controls.Add(pnlPendingConsignments, 0, 1);
+
+            // Create additional cards
+            Panel outstandingCreditCard = CreateDashboardCard(
+                "Outstanding Credit",
+                out lblOutstandingCreditValue);
+
+            Panel outstandingConsignmentCard = CreateDashboardCard(
+                "Outstanding Consignment",
+                out lblOutstandingConsignmentValue);
+
+            Panel lowStockCard = CreateDashboardCard(
+                "Low Stock Products",
+                out lblLowStockValue);
+
+            Panel overdueCreditCard = CreateDashboardCard(
+                "Overdue Credit Accounts",
+                out lblOverdueCreditValue);
+
+            Panel outOfStockCard = CreateDashboardCard(
+                "Out of Stock Products",
+                out lblOutOfStockValue);
+
+            // Add additional cards
+            tlpDashboardCards.Controls.Add(outstandingCreditCard, 1, 1);
+            tlpDashboardCards.Controls.Add(outstandingConsignmentCard, 2, 1);
+            tlpDashboardCards.Controls.Add(lowStockCard, 0, 2);
+            tlpDashboardCards.Controls.Add(overdueCreditCard, 1, 2);
+            tlpDashboardCards.Controls.Add(outOfStockCard, 2, 2);
+
+            tlpDashboardCards.ResumeLayout();
+        }
+
+        private Panel CreateDashboardCard(
+            string title,
+            out Label valueLabel)
+        {
+            Panel card = new()
+            {
+                BackColor = System.Drawing.Color.FromArgb(249, 250, 251),
+                BorderStyle = BorderStyle.FixedSingle,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(8)
+            };
+
+            Label titleLabel = new()
+            {
+                AutoSize = true,
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 10F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(107, 114, 128),
+                Location = new System.Drawing.Point(15, 15),
+                Text = title
+            };
+
+            valueLabel = new Label
+            {
+                AutoSize = true,
+                Font = new System.Drawing.Font(
+                    "Segoe UI", 24F, System.Drawing.FontStyle.Bold),
+                ForeColor = System.Drawing.Color.FromArgb(17, 24, 39),
+                Location = new System.Drawing.Point(15, 55),
+                Text = "-"
+            };
+
+            card.Controls.Add(titleLabel);
+            card.Controls.Add(valueLabel);
+
+            return card;
         }
 
         private void LoadCustomers()
@@ -230,6 +375,58 @@ namespace KKWholesalePOS.UI
         private void btnDashboard_Click(object sender, EventArgs e)
         {
             ShowPage(pnlDashboard, "Dashboard", btnDashboard);
+            LoadDashboardSummary();
+        }
+
+        private void LoadDashboardSummary()
+        {
+            try
+            {
+                var summary = _dashboardService.GetDashboardSummary();
+
+                // Product and customer totals
+                lblTotalProductsValue.Text =
+                    summary.TotalProducts.ToString("N0");
+
+                lblActiveCustomersValue.Text =
+                    summary.TotalCustomers.ToString("N0");
+
+                // Today's sales
+                lblSalesTodayValue.Text =
+                    summary.SalesToday.ToString("C");
+                
+                lblTransactionsToday.Text =
+                    $"{summary.TransactionsToday} transactions";
+
+                // Consignments
+                lblPendingConsignmentsValue.Text =
+                    summary.PendingConsignments.ToString("N0");
+
+                lblOutstandingConsignmentValue.Text =
+                    summary.OutstandingConsignmentBalance.ToString("C");
+
+                // Credit accounts
+                lblOutstandingCreditValue.Text =
+                    summary.OutstandingCreditBalance.ToString("C");
+
+                lblOverdueCreditValue.Text =
+                    summary.OverdueCreditAccounts.ToString("N0");
+
+                // Inventory
+                lblLowStockValue.Text =
+                    summary.LowStockProducts.ToString("N0");
+
+                lblOutOfStockValue.Text =
+                    summary.OutOfStockProducts.ToString("N0");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Unable to load dashboard information: {ex.Message}",
+                    "Dashboard Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void btnReports_Click(object sender, EventArgs e)
@@ -277,6 +474,8 @@ namespace KKWholesalePOS.UI
                     pnlDashboard,
                     "Dashboard",
                     btnDashboard);
+
+                LoadDashboardSummary();
 
                 Show();
             }
@@ -526,7 +725,7 @@ namespace KKWholesalePOS.UI
 
         private void DisplaySalesReport(SalesReportResult report)
         {
-            _currentSalesReport = report;
+            _currentReportName = "Sales Report";
 
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Transactions.ToList();
@@ -546,7 +745,7 @@ namespace KKWholesalePOS.UI
 
         private void DisplayCreditStatement(CreditStatementResult report)
         {
-            _currentSalesReport = null;
+            _currentReportName = "Credit Statement";
 
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Transactions.ToList();
@@ -567,7 +766,8 @@ namespace KKWholesalePOS.UI
         private void DisplayConsignmentStatement(
             ConsignmentStatementResult report)
         {
-            _currentSalesReport = null;
+            _currentReportName = "Consignment Statement";
+
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Transactions.ToList();
 
@@ -587,7 +787,7 @@ namespace KKWholesalePOS.UI
 
         private void DisplayInventoryReport(InventoryReportResult report)
         {
-            _currentSalesReport = null;
+            _currentReportName = "Inventory Report";
 
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Products.ToList();
@@ -603,13 +803,38 @@ namespace KKWholesalePOS.UI
             btnExportWord.Enabled = true;
         }
 
+        private List<DataGridViewColumn> GetExportColumns()
+        {
+            return dgvReportResults.Columns
+                .Cast<DataGridViewColumn>()
+                .Where(column => column.Visible)
+                .ToList();
+        }
+
+        private List<DataGridViewRow> GetExportRows()
+        {
+            return dgvReportResults.Rows
+                .Cast<DataGridViewRow>()
+                .Where(row => !row.IsNewRow)
+                .ToList();
+        }
+
+        private string GetExportFileName()
+        {
+            string safeName = _currentReportName.Replace(" ", "_");
+
+            return $"{safeName}_{DateTime.Now:yyyyMMdd_HHmm}";
+        }
+
         private void btnExportPdf_Click(object? sender, EventArgs e)
         {
-            if (_currentSalesReport == null ||
-                _currentSalesReport.TransactionCount == 0)
+            List<DataGridViewColumn> columns = GetExportColumns();
+            List<DataGridViewRow> rows = GetExportRows();
+
+            if (columns.Count == 0)
             {
                 MessageBox.Show(
-                    "Please generate a sales report before exporting.",
+                    "Please generate a report before exporting.",
                     "PDF Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -619,11 +844,11 @@ namespace KKWholesalePOS.UI
 
             using SaveFileDialog saveDialog = new()
             {
-                Title = "Export Sales Report",
+                Title = $"Export {_currentReportName}",
                 Filter = "PDF Files (*.pdf)|*.pdf",
                 DefaultExt = "pdf",
                 AddExtension = true,
-                FileName = $"Sales_Report_{DateTime.Now:yyyyMMdd_HHmm}"
+                FileName = GetExportFileName()
             };
 
             if (saveDialog.ShowDialog() != DialogResult.OK)
@@ -631,100 +856,64 @@ namespace KKWholesalePOS.UI
 
             try
             {
-                SalesReportResult report = _currentSalesReport;
-
                 QuestPDF.Fluent.Document.Create(document =>
                 {
                     document.Page(page =>
                     {
                         page.Size(PageSizes.A4);
-                        page.Margin(35);
+                        page.Margin(30);
+                        page.DefaultTextStyle(style => style.FontSize(8));
 
-                        page.DefaultTextStyle(style => style.FontSize(9));
+                        page.Header().Column(column =>
+                        {
+                            column.Item()
+                                .Text("K&K WHOLESALE")
+                                .FontSize(20)
+                                .Bold();
 
-                        page.Header()
-                            .Column(column =>
-                            {
-                                column.Item()
-                                    .Text("K&K WHOLESALE")
-                                    .FontSize(20)
-                                    .Bold();
+                            column.Item()
+                                .Text(_currentReportName)
+                                .FontSize(14)
+                                .SemiBold();
 
-                                column.Item()
-                                    .Text("Sales Report")
-                                    .FontSize(14)
-                                    .SemiBold();
-
-                                column.Item()
-                                    .Text(
-                                        $"{report.StartDate:dd MMM yyyy} - " +
-                                        $"{report.EndDate:dd MMM yyyy}");
-                            });
+                            column.Item()
+                                .Text(lblReportSummary.Text);
+                        });
 
                         page.Content()
-                            .PaddingVertical(20)
-                            .Column(column =>
+                            .PaddingVertical(15)
+                            .Table(table =>
                             {
-                                column.Item().Table(table =>
+                                table.ColumnsDefinition(definition =>
                                 {
-                                    table.ColumnsDefinition(columns =>
+                                    foreach (var unused in columns)
                                     {
-                                        columns.RelativeColumn(1);
-                                        columns.RelativeColumn(2);
-                                        columns.RelativeColumn(2);
-                                        columns.RelativeColumn(2);
-                                        columns.RelativeColumn(2);
-                                    });
-
-                                    table.Header(header =>
-                                    {
-                                        header.Cell().Element(HeaderStyle)
-                                            .Text("Sale ID");
-
-                                        header.Cell().Element(HeaderStyle)
-                                            .Text("Receipt");
-
-                                        header.Cell().Element(HeaderStyle)
-                                            .Text("Date");
-
-                                        header.Cell().Element(HeaderStyle)
-                                            .Text("Cashier");
-
-                                        header.Cell().Element(HeaderStyle)
-                                            .Text("Total");
-                                    });
-
-                                    foreach (SalesReportRow transaction
-                                             in report.Transactions)
-                                    {
-                                        table.Cell().Element(CellStyle)
-                                            .Text(transaction.SaleId.ToString());
-
-                                        table.Cell().Element(CellStyle)
-                                            .Text(transaction.ReceiptNumber);
-
-                                        table.Cell().Element(CellStyle)
-                                            .Text(transaction.SaleDate.ToString("dd MMM yyyy"));
-
-                                        table.Cell().Element(CellStyle)
-                                            .Text(transaction.CashierName);
-
-                                        table.Cell().Element(CellStyle)
-                                            .Text(transaction.TotalAmount.ToString("C"));
+                                        definition.RelativeColumn();
                                     }
                                 });
 
-                                column.Item()
-                                    .PaddingTop(20)
-                                    .AlignRight()
-                                    .Text($"Transactions: {report.TransactionCount}")
-                                    .SemiBold();
+                                table.Header(header =>
+                                {
+                                    foreach (DataGridViewColumn column in columns)
+                                    {
+                                        header.Cell()
+                                            .Element(HeaderStyle)
+                                            .Text(column.HeaderText);
+                                    }
+                                });
 
-                                column.Item()
-                                    .AlignRight()
-                                    .Text($"Total Revenue: {report.TotalSalesRevenue:C}")
-                                    .FontSize(12)
-                                    .Bold();
+                                foreach (DataGridViewRow row in rows)
+                                {
+                                    foreach (DataGridViewColumn column in columns)
+                                    {
+                                        string value =
+                                            row.Cells[column.Index].Value?.ToString() ?? "";
+
+                                        table.Cell()
+                                            .Element(CellStyle)
+                                            .Text(value);
+                                    }
+                                }
                             });
 
                         page.Footer()
@@ -740,7 +929,7 @@ namespace KKWholesalePOS.UI
                 }).GeneratePdf(saveDialog.FileName);
 
                 MessageBox.Show(
-                    "Sales report exported successfully.",
+                    $"{_currentReportName} exported successfully.",
                     "PDF Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -754,13 +943,16 @@ namespace KKWholesalePOS.UI
                     MessageBoxIcon.Error);
             }
         }
+
         private void btnExportExcel_Click(object? sender, EventArgs e)
         {
-            if (_currentSalesReport == null ||
-                _currentSalesReport.TransactionCount == 0)
+            List<DataGridViewColumn> columns = GetExportColumns();
+            List<DataGridViewRow> rows = GetExportRows();
+
+            if (columns.Count == 0)
             {
                 MessageBox.Show(
-                    "Please generate a sales report before exporting.",
+                    "Please generate a report before exporting.",
                     "Excel Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -770,11 +962,11 @@ namespace KKWholesalePOS.UI
 
             using SaveFileDialog saveDialog = new()
             {
-                Title = "Export Sales Report to Excel",
+                Title = $"Export {_currentReportName} to Excel",
                 Filter = "Excel Workbook (*.xlsx)|*.xlsx",
                 DefaultExt = "xlsx",
                 AddExtension = true,
-                FileName = $"Sales_Report_{DateTime.Now:yyyyMMdd_HHmm}"
+                FileName = GetExportFileName()
             };
 
             if (saveDialog.ShowDialog() != DialogResult.OK)
@@ -782,94 +974,80 @@ namespace KKWholesalePOS.UI
 
             try
             {
-                SalesReportResult report = _currentSalesReport;
-
                 using XLWorkbook workbook = new();
-                IXLWorksheet worksheet = workbook.Worksheets.Add("Sales Report");
+
+                IXLWorksheet worksheet =
+                    workbook.Worksheets.Add(_currentReportName);
+
+                int columnCount = columns.Count;
 
                 // Report heading
                 worksheet.Cell("A1").Value = "K&K WHOLESALE";
-                worksheet.Range("A1:E1").Merge();
+                worksheet.Range(1, 1, 1, columnCount).Merge();
 
                 worksheet.Cell("A1").Style.Font.Bold = true;
                 worksheet.Cell("A1").Style.Font.FontSize = 18;
 
-                worksheet.Cell("A2").Value = "Sales Report";
-                worksheet.Range("A2:E2").Merge();
+                // Report type
+                worksheet.Cell("A2").Value = _currentReportName;
+                worksheet.Range(2, 1, 2, columnCount).Merge();
+
                 worksheet.Cell("A2").Style.Font.Bold = true;
                 worksheet.Cell("A2").Style.Font.FontSize = 14;
 
-                worksheet.Cell("A3").Value =
-                    $"Period: {report.StartDate:dd MMM yyyy} - {report.EndDate:dd MMM yyyy}";
-
-                worksheet.Range("A3:E3").Merge();
+                // Report summary
+                worksheet.Cell("A3").Value = lblReportSummary.Text;
+                worksheet.Range(3, 1, 3, columnCount).Merge();
 
                 // Column headings
                 int headerRow = 5;
 
-                worksheet.Cell(headerRow, 1).Value = "Sale ID";
-                worksheet.Cell(headerRow, 2).Value = "Receipt Number";
-                worksheet.Cell(headerRow, 3).Value = "Sale Date";
-                worksheet.Cell(headerRow, 4).Value = "Cashier";
-                worksheet.Cell(headerRow, 5).Value = "Total Amount";
+                for (int i = 0; i < columnCount; i++)
+                {
+                    worksheet.Cell(headerRow, i + 1).Value =
+                        columns[i].HeaderText;
+                }
 
-                var header = worksheet.Range(headerRow, 1, headerRow, 5);
+                var header = worksheet.Range(
+                    headerRow, 1,
+                    headerRow, columnCount);
 
                 header.Style.Font.Bold = true;
                 header.Style.Fill.BackgroundColor = XLColor.LightGray;
                 header.Style.Alignment.Horizontal =
                     XLAlignmentHorizontalValues.Center;
 
-                // Transaction records
+                // Report data
                 int currentRow = headerRow + 1;
 
-                foreach (SalesReportRow transaction in report.Transactions)
+                foreach (DataGridViewRow row in rows)
                 {
-                    worksheet.Cell(currentRow, 1).Value = transaction.SaleId;
-                    worksheet.Cell(currentRow, 2).Value = transaction.ReceiptNumber;
-                    worksheet.Cell(currentRow, 3).Value = transaction.SaleDate;
-                    worksheet.Cell(currentRow, 4).Value = transaction.CashierName;
-                    worksheet.Cell(currentRow, 5).Value =
-                        (double)transaction.TotalAmount;
+                    for (int i = 0; i < columnCount; i++)
+                    {
+                        object? value =
+                            row.Cells[columns[i].Index].Value;
 
-                    worksheet.Cell(currentRow, 3).Style.DateFormat.Format =
-                        "dd MMM yyyy HH:mm";
-
-                    worksheet.Cell(currentRow, 5).Style.NumberFormat.Format =
-                        "\"J$\"#,##0.00";
+                        worksheet.Cell(currentRow, i + 1).Value =
+                            value?.ToString() ?? "";
+                    }
 
                     currentRow++;
                 }
 
-                // Summary
-                int summaryRow = currentRow + 1;
-
-                worksheet.Cell(summaryRow, 4).Value = "Transactions:";
-                worksheet.Cell(summaryRow, 5).Value = report.TransactionCount;
-
-                worksheet.Cell(summaryRow + 1, 4).Value = "Total Revenue:";
-                worksheet.Cell(summaryRow + 1, 5).Value =
-                    (double)report.TotalSalesRevenue;
-
-                worksheet.Cell(summaryRow, 4).Style.Font.Bold = true;
-                worksheet.Cell(summaryRow + 1, 4).Style.Font.Bold = true;
-                worksheet.Cell(summaryRow + 1, 5).Style.Font.Bold = true;
-
-                worksheet.Cell(summaryRow + 1, 5)
-                    .Style.NumberFormat.Format = "\"J$\"#,##0.00";
-
-                // Formatting
                 worksheet.Columns().AdjustToContents();
                 worksheet.SheetView.FreezeRows(headerRow);
 
-                worksheet.Range(
-                    headerRow, 1,
-                    currentRow - 1, 5).SetAutoFilter();
+                if (rows.Count > 0)
+                {
+                    worksheet.Range(
+                        headerRow, 1,
+                        currentRow - 1, columnCount).SetAutoFilter();
+                }
 
                 workbook.SaveAs(saveDialog.FileName);
 
                 MessageBox.Show(
-                    "Sales report exported successfully to Excel.",
+                    $"{_currentReportName} exported successfully to Excel.",
                     "Excel Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -877,21 +1055,22 @@ namespace KKWholesalePOS.UI
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    $"Unable to export Excel file: {ex.Message}",
+                    $"Unable to export Excel: {ex.Message}",
                     "Excel Export Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
         }
 
-
         private void btnExportWord_Click(object? sender, EventArgs e)
         {
-            if (_currentSalesReport == null ||
-                _currentSalesReport.TransactionCount == 0)
+            List<DataGridViewColumn> columns = GetExportColumns();
+            List<DataGridViewRow> rows = GetExportRows();
+
+            if (columns.Count == 0)
             {
                 MessageBox.Show(
-                    "Please generate a sales report before exporting.",
+                    "Please generate a report before exporting.",
                     "Word Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
@@ -901,11 +1080,11 @@ namespace KKWholesalePOS.UI
 
             using SaveFileDialog saveDialog = new()
             {
-                Title = "Export Sales Report to Word",
+                Title = $"Export {_currentReportName} to Word",
                 Filter = "Word Document (*.docx)|*.docx",
                 DefaultExt = "docx",
                 AddExtension = true,
-                FileName = $"Sales_Report_{DateTime.Now:yyyyMMdd_HHmm}"
+                FileName = GetExportFileName()
             };
 
             if (saveDialog.ShowDialog() != DialogResult.OK)
@@ -913,8 +1092,6 @@ namespace KKWholesalePOS.UI
 
             try
             {
-                SalesReportResult report = _currentSalesReport;
-
                 using WordprocessingDocument document =
                     WordprocessingDocument.Create(
                         saveDialog.FileName,
@@ -928,27 +1105,18 @@ namespace KKWholesalePOS.UI
 
                 Body body = new();
 
-                // Company heading
                 body.Append(CreateWordParagraph(
-                    "K&K WHOLESALE",
-                    true,
-                    "32"));
+                    "K&K WHOLESALE", true, "32"));
 
                 body.Append(CreateWordParagraph(
-                    "Sales Report",
-                    true,
-                    "24"));
+                    _currentReportName, true, "24"));
 
                 body.Append(CreateWordParagraph(
-                    $"Period: {report.StartDate:dd MMM yyyy} - " +
-                    $"{report.EndDate:dd MMM yyyy}",
-                    false,
-                    "20"));
+                    lblReportSummary.Text, false, "20"));
 
-                // Transaction table
                 Table table = new();
 
-                TableProperties tableProperties = new(
+                table.AppendChild(new TableProperties(
                     new TableBorders(
                         new TopBorder
                         {
@@ -979,70 +1147,42 @@ namespace KKWholesalePOS.UI
                         {
                             Val = BorderValues.Single,
                             Size = 4
-                        }));
+                        })));
 
-                table.AppendChild(tableProperties);
-
-                // Header row
+                // Column headings
                 TableRow headerRow = new();
 
-                string[] headers =
+                foreach (DataGridViewColumn column in columns)
                 {
-            "Sale ID",
-            "Receipt",
-            "Date",
-            "Cashier",
-            "Total"
-        };
-
-                foreach (string header in headers)
-                {
-                    headerRow.Append(CreateWordCell(header, true));
+                    headerRow.Append(
+                        CreateWordCell(column.HeaderText, true));
                 }
 
                 table.Append(headerRow);
 
-                // Transaction rows
-                foreach (SalesReportRow transaction in report.Transactions)
+                // Report data
+                foreach (DataGridViewRow dataRow in rows)
                 {
                     TableRow row = new();
 
-                    row.Append(CreateWordCell(
-                        transaction.SaleId.ToString()));
+                    foreach (DataGridViewColumn column in columns)
+                    {
+                        string value =
+                            dataRow.Cells[column.Index].Value?.ToString() ?? "";
 
-                    row.Append(CreateWordCell(
-                        transaction.ReceiptNumber));
-
-                    row.Append(CreateWordCell(
-                        transaction.SaleDate.ToString("dd MMM yyyy")));
-
-                    row.Append(CreateWordCell(
-                        transaction.CashierName));
-
-                    row.Append(CreateWordCell(
-                        transaction.TotalAmount.ToString("C")));
+                        row.Append(CreateWordCell(value));
+                    }
 
                     table.Append(row);
                 }
 
                 body.Append(table);
 
-                // Report summary
-                body.Append(CreateWordParagraph(
-                    $"Transactions: {report.TransactionCount}",
-                    true,
-                    "20"));
-
-                body.Append(CreateWordParagraph(
-                    $"Total Revenue: {report.TotalSalesRevenue:C}",
-                    true,
-                    "24"));
-
                 mainPart.Document.Append(body);
                 mainPart.Document.Save();
 
                 MessageBox.Show(
-                    "Sales report exported successfully to Word.",
+                    $"{_currentReportName} exported successfully to Word.",
                     "Word Export",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);

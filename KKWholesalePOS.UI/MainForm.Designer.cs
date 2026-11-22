@@ -113,7 +113,7 @@
             pnlHeader.Dock = DockStyle.Top;
             pnlHeader.Location = new Point(0, 0);
             pnlHeader.Name = "pnlHeader";
-            pnlHeader.Size = new Size(1078, 65);
+            pnlHeader.Size = new Size(1578, 65);
             pnlHeader.TabIndex = 0;
             // 
             // lblAppName
@@ -132,7 +132,7 @@
             lblCurrentUser.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             lblCurrentUser.AutoSize = true;
             lblCurrentUser.ForeColor = Color.White;
-            lblCurrentUser.Location = new Point(732, 16);
+            lblCurrentUser.Location = new Point(1232, 16);
             lblCurrentUser.Name = "lblCurrentUser";
             lblCurrentUser.Size = new Size(226, 25);
             lblCurrentUser.TabIndex = 1;
@@ -145,7 +145,7 @@
             btnLogout.Cursor = Cursors.Hand;
             btnLogout.FlatStyle = FlatStyle.Flat;
             btnLogout.ForeColor = Color.White;
-            btnLogout.Location = new Point(964, 12);
+            btnLogout.Location = new Point(1464, 12);
             btnLogout.Name = "btnLogout";
             btnLogout.Size = new Size(90, 32);
             btnLogout.TabIndex = 2;
@@ -160,7 +160,7 @@
             pnlSidebar.Dock = DockStyle.Left;
             pnlSidebar.Location = new Point(0, 65);
             pnlSidebar.Name = "pnlSidebar";
-            pnlSidebar.Size = new Size(220, 612);
+            pnlSidebar.Size = new Size(220, 779);
             pnlSidebar.TabIndex = 1;
             // 
             // flpNavigation
@@ -179,7 +179,7 @@
             flpNavigation.Location = new Point(0, 45);
             flpNavigation.Name = "flpNavigation";
             flpNavigation.Padding = new Padding(10, 15, 10, 10);
-            flpNavigation.Size = new Size(220, 567);
+            flpNavigation.Size = new Size(220, 734);
             flpNavigation.TabIndex = 1;
             flpNavigation.WrapContents = false;
             // 
@@ -329,7 +329,7 @@
             pnlContent.Location = new Point(220, 65);
             pnlContent.Name = "pnlContent";
             pnlContent.Padding = new Padding(20);
-            pnlContent.Size = new Size(858, 612);
+            pnlContent.Size = new Size(1358, 779);
             pnlContent.TabIndex = 2;
             // 
             // lblPageTitle
@@ -370,7 +370,7 @@
             pnlReports.Controls.Add(btnExportWord);
             pnlReports.Location = new Point(20, 110);
             pnlReports.Name = "pnlReports";
-            pnlReports.Size = new Size(815, 430);
+            pnlReports.Size = new Size(1315, 597);
             pnlReports.TabIndex = 11;
             pnlReports.Visible = false;
             // 
@@ -390,7 +390,7 @@
             pnlReportFilters.Controls.Add(btnGenerateReport);
             pnlReportFilters.Location = new Point(20, 65);
             pnlReportFilters.Name = "pnlReportFilters";
-            pnlReportFilters.Size = new Size(776, 145);
+            pnlReportFilters.Size = new Size(1276, 145);
             pnlReportFilters.TabIndex = 1;
             // 
             // cmbCustomer
@@ -502,7 +502,7 @@
             dgvReportResults.RowHeadersVisible = false;
             dgvReportResults.RowHeadersWidth = 62;
             dgvReportResults.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvReportResults.Size = new Size(776, 102);
+            dgvReportResults.Size = new Size(1276, 269);
             dgvReportResults.TabIndex = 2;
             // 
             // lblReportSummary
@@ -510,7 +510,7 @@
             lblReportSummary.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             lblReportSummary.AutoSize = true;
             lblReportSummary.Font = new Font("Segoe UI", 11F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblReportSummary.Location = new Point(20, 330);
+            lblReportSummary.Location = new Point(20, 497);
             lblReportSummary.Name = "lblReportSummary";
             lblReportSummary.Size = new Size(235, 30);
             lblReportSummary.TabIndex = 3;
@@ -520,57 +520,57 @@
             // 
             btnPrintReport.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
             btnPrintReport.Enabled = false;
-            btnPrintReport.Location = new Point(658, 380);
+            btnPrintReport.Location = new Point(1158, 547);
             btnPrintReport.Name = "btnPrintReport";
             btnPrintReport.Size = new Size(130, 38);
             btnPrintReport.TabIndex = 4;
             btnPrintReport.Text = "Print Report";
             btnPrintReport.UseVisualStyleBackColor = true;
             // 
-            //btnExportPdf
-            //
+            // btnExportPdf
+            // 
             btnExportPdf.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnExportPdf.Location = new Point(522, 380);
+            btnExportPdf.Location = new Point(1022, 547);
             btnExportPdf.Name = "btnExportPdf";
             btnExportPdf.Size = new Size(130, 38);
             btnExportPdf.TabIndex = 5;
             btnExportPdf.Text = "Export PDF";
             btnExportPdf.UseVisualStyleBackColor = true;
-            //
-            //btnExportExcel
-            //
+            // 
+            // btnExportExcel
+            // 
             btnExportExcel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnExportExcel.Location = new Point(386, 380);
+            btnExportExcel.Location = new Point(886, 547);
             btnExportExcel.Name = "btnExportExcel";
             btnExportExcel.Size = new Size(130, 38);
             btnExportExcel.TabIndex = 6;
             btnExportExcel.Text = "Export Excel";
             btnExportExcel.UseVisualStyleBackColor = true;
-            //
-            //btnExportWord
-            //
+            // 
+            // btnExportWord
+            // 
             btnExportWord.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnExportWord.Location = new Point(250, 380);
+            btnExportWord.Location = new Point(750, 547);
             btnExportWord.Name = "btnExportWord";
             btnExportWord.Size = new Size(130, 38);
             btnExportWord.TabIndex = 7;
             btnExportWord.Text = "Export Word";
             btnExportWord.UseVisualStyleBackColor = true;
-            //
-            //pnlUserManagement
-            //
+            // 
+            // pnlUserManagement
+            // 
             pnlUserManagement.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             pnlUserManagement.BackColor = Color.White;
             pnlUserManagement.BorderStyle = BorderStyle.FixedSingle;
             pnlUserManagement.Controls.Add(lblUserManagementPlaceholder);
             pnlUserManagement.Location = new Point(20, 110);
             pnlUserManagement.Name = "pnlUserManagement";
-            pnlUserManagement.Size = new Size(815, 430);
+            pnlUserManagement.Size = new Size(1315, 597);
             pnlUserManagement.TabIndex = 12;
             pnlUserManagement.Visible = false;
             // 
             // lblUserManagementPlaceholder
-            //
+            // 
             lblUserManagementPlaceholder.AutoSize = true;
             lblUserManagementPlaceholder.Font = new Font("Segoe UI", 14F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lblUserManagementPlaceholder.Location = new Point(25, 25);
@@ -580,14 +580,14 @@
             lblUserManagementPlaceholder.Text = "User management section";
             // 
             // pnlDashboard
-            //
+            // 
             pnlDashboard.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             pnlDashboard.BackColor = Color.White;
             pnlDashboard.BorderStyle = BorderStyle.FixedSingle;
             pnlDashboard.Controls.Add(tlpDashboardCards);
             pnlDashboard.Location = new Point(20, 110);
             pnlDashboard.Name = "pnlDashboard";
-            pnlDashboard.Size = new Size(815, 430);
+            pnlDashboard.Size = new Size(1315, 597);
             pnlDashboard.TabIndex = 10;
             // 
             // tlpDashboardCards
@@ -607,7 +607,7 @@
             tlpDashboardCards.RowCount = 2;
             tlpDashboardCards.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             tlpDashboardCards.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            tlpDashboardCards.Size = new Size(813, 428);
+            tlpDashboardCards.Size = new Size(1313, 595);
             tlpDashboardCards.TabIndex = 0;
             // 
             // pnlTotalProducts
@@ -620,7 +620,7 @@
             pnlTotalProducts.Location = new Point(25, 25);
             pnlTotalProducts.Margin = new Padding(10);
             pnlTotalProducts.Name = "pnlTotalProducts";
-            pnlTotalProducts.Size = new Size(371, 179);
+            pnlTotalProducts.Size = new Size(621, 262);
             pnlTotalProducts.TabIndex = 0;
             // 
             // lblTotalProductsValue
@@ -652,10 +652,10 @@
             pnlActiveCustomers.Controls.Add(lblActiveCustomersValue);
             pnlActiveCustomers.Controls.Add(lblActiveCustomersTitle);
             pnlActiveCustomers.Dock = DockStyle.Fill;
-            pnlActiveCustomers.Location = new Point(416, 25);
+            pnlActiveCustomers.Location = new Point(666, 25);
             pnlActiveCustomers.Margin = new Padding(10);
             pnlActiveCustomers.Name = "pnlActiveCustomers";
-            pnlActiveCustomers.Size = new Size(372, 179);
+            pnlActiveCustomers.Size = new Size(622, 262);
             pnlActiveCustomers.TabIndex = 1;
             // 
             // lblActiveCustomersValue
@@ -687,10 +687,10 @@
             pnlSalesToday.Controls.Add(lblSalesTodayValue);
             pnlSalesToday.Controls.Add(lblSalesTodayTitle);
             pnlSalesToday.Dock = DockStyle.Fill;
-            pnlSalesToday.Location = new Point(25, 224);
+            pnlSalesToday.Location = new Point(25, 307);
             pnlSalesToday.Margin = new Padding(10);
             pnlSalesToday.Name = "pnlSalesToday";
-            pnlSalesToday.Size = new Size(371, 179);
+            pnlSalesToday.Size = new Size(621, 263);
             pnlSalesToday.TabIndex = 2;
             // 
             // lblSalesTodayValue
@@ -722,10 +722,10 @@
             pnlPendingConsignments.Controls.Add(lblPendingConsignmentsValue);
             pnlPendingConsignments.Controls.Add(lblPendingConsignmentsTitle);
             pnlPendingConsignments.Dock = DockStyle.Fill;
-            pnlPendingConsignments.Location = new Point(416, 224);
+            pnlPendingConsignments.Location = new Point(666, 307);
             pnlPendingConsignments.Margin = new Padding(10);
             pnlPendingConsignments.Name = "pnlPendingConsignments";
-            pnlPendingConsignments.Size = new Size(372, 179);
+            pnlPendingConsignments.Size = new Size(622, 263);
             pnlPendingConsignments.TabIndex = 3;
             // 
             // lblPendingConsignmentsValue
@@ -758,7 +758,7 @@
             pnlSettings.Controls.Add(lblSettingsPlaceholder);
             pnlSettings.Location = new Point(20, 110);
             pnlSettings.Name = "pnlSettings";
-            pnlSettings.Size = new Size(815, 430);
+            pnlSettings.Size = new Size(1315, 597);
             pnlSettings.TabIndex = 13;
             pnlSettings.Visible = false;
             // 
@@ -777,9 +777,9 @@
             statusStripMain.BackColor = Color.White;
             statusStripMain.ImageScalingSize = new Size(0, 0);
             statusStripMain.Items.AddRange(new ToolStripItem[] { tsslSessionStatus, tsslDateTime });
-            statusStripMain.Location = new Point(220, 645);
+            statusStripMain.Location = new Point(220, 812);
             statusStripMain.Name = "statusStripMain";
-            statusStripMain.Size = new Size(858, 32);
+            statusStripMain.Size = new Size(1358, 32);
             statusStripMain.TabIndex = 3;
             // 
             // tsslSessionStatus
@@ -802,11 +802,12 @@
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(1078, 677);
+            ClientSize = new Size(1578, 844);
             Controls.Add(statusStripMain);
             Controls.Add(pnlContent);
             Controls.Add(pnlSidebar);
             Controls.Add(pnlHeader);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "MainForm";
             StartPosition = FormStartPosition.CenterScreen;
