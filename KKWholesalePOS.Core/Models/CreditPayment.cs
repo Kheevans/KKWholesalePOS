@@ -2,20 +2,17 @@ namespace KKWholesalePOS.Core.Models;
 
 public class CreditPayment
 {
-    public int Id {get; set;}
+    public int Id { get; set; }
 
-//invoice this payment belongs to
-    public int CreditTransactionId{ get; set;}
+    public int CreditSaleId { get; set; }
 
-    public CreditTransaction CreditTransaction {get; set;} =null!;
+    public int UserId { get; set; }
 
-//amount paid by customer
-    public decimal AmountPaid{get; set;}
+    public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
 
-//date the payment was made 
-    public DateTime PaymentDate {get; set;} = DateTime.UtcNow;
+    public decimal Amount { get; set; }
 
-    public int RecordedByUserId{ get; set;}
+    public string PaymentMethod { get; set; } = "Cash";
 
-    public User RecordedByUser{get; set;} = null!;
+    public string? ReferenceNumber { get; set; }
 }
