@@ -62,6 +62,9 @@
             dgvReportResults = new DataGridView();
             lblReportSummary = new Label();
             btnPrintReport = new Button();
+            btnExportPdf = new Button();
+            btnExportExcel = new Button();
+            btnExportWord = new Button();
             pnlUserManagement = new Panel();
             lblUserManagementPlaceholder = new Label();
             pnlDashboard = new Panel();
@@ -362,6 +365,9 @@
             pnlReports.Controls.Add(dgvReportResults);
             pnlReports.Controls.Add(lblReportSummary);
             pnlReports.Controls.Add(btnPrintReport);
+            pnlReports.Controls.Add(btnExportPdf);
+            pnlReports.Controls.Add(btnExportExcel);
+            pnlReports.Controls.Add(btnExportWord);
             pnlReports.Location = new Point(20, 110);
             pnlReports.Name = "pnlReports";
             pnlReports.Size = new Size(815, 430);
@@ -490,13 +496,13 @@
             dgvReportResults.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             dgvReportResults.BackgroundColor = Color.White;
             dgvReportResults.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvReportResults.Location = new Point(20, 230);
+            dgvReportResults.Location = new Point(20, 224);
             dgvReportResults.Name = "dgvReportResults";
             dgvReportResults.ReadOnly = true;
             dgvReportResults.RowHeadersVisible = false;
             dgvReportResults.RowHeadersWidth = 62;
             dgvReportResults.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvReportResults.Size = new Size(776, 130);
+            dgvReportResults.Size = new Size(776, 102);
             dgvReportResults.TabIndex = 2;
             // 
             // lblReportSummary
@@ -504,7 +510,7 @@
             lblReportSummary.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
             lblReportSummary.AutoSize = true;
             lblReportSummary.Font = new Font("Segoe UI", 11F, FontStyle.Bold, GraphicsUnit.Point, 0);
-            lblReportSummary.Location = new Point(20, 373);
+            lblReportSummary.Location = new Point(20, 330);
             lblReportSummary.Name = "lblReportSummary";
             lblReportSummary.Size = new Size(235, 30);
             lblReportSummary.TabIndex = 3;
@@ -521,8 +527,38 @@
             btnPrintReport.Text = "Print Report";
             btnPrintReport.UseVisualStyleBackColor = true;
             // 
-            // pnlUserManagement
-            // 
+            //btnExportPdf
+            //
+            btnExportPdf.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnExportPdf.Location = new Point(522, 380);
+            btnExportPdf.Name = "btnExportPdf";
+            btnExportPdf.Size = new Size(130, 38);
+            btnExportPdf.TabIndex = 5;
+            btnExportPdf.Text = "Export PDF";
+            btnExportPdf.UseVisualStyleBackColor = true;
+            //
+            //btnExportExcel
+            //
+            btnExportExcel.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnExportExcel.Location = new Point(386, 380);
+            btnExportExcel.Name = "btnExportExcel";
+            btnExportExcel.Size = new Size(130, 38);
+            btnExportExcel.TabIndex = 6;
+            btnExportExcel.Text = "Export Excel";
+            btnExportExcel.UseVisualStyleBackColor = true;
+            //
+            //btnExportWord
+            //
+            btnExportWord.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnExportWord.Location = new Point(250, 380);
+            btnExportWord.Name = "btnExportWord";
+            btnExportWord.Size = new Size(130, 38);
+            btnExportWord.TabIndex = 7;
+            btnExportWord.Text = "Export Word";
+            btnExportWord.UseVisualStyleBackColor = true;
+            //
+            //pnlUserManagement
+            //
             pnlUserManagement.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             pnlUserManagement.BackColor = Color.White;
             pnlUserManagement.BorderStyle = BorderStyle.FixedSingle;
@@ -534,7 +570,7 @@
             pnlUserManagement.Visible = false;
             // 
             // lblUserManagementPlaceholder
-            // 
+            //
             lblUserManagementPlaceholder.AutoSize = true;
             lblUserManagementPlaceholder.Font = new Font("Segoe UI", 14F, FontStyle.Bold, GraphicsUnit.Point, 0);
             lblUserManagementPlaceholder.Location = new Point(25, 25);
@@ -544,7 +580,7 @@
             lblUserManagementPlaceholder.Text = "User management section";
             // 
             // pnlDashboard
-            // 
+            //
             pnlDashboard.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
             pnlDashboard.BackColor = Color.White;
             pnlDashboard.BorderStyle = BorderStyle.FixedSingle;
@@ -863,5 +899,8 @@
         private Label lblReportSummary;
         private ComboBox cmbCustomer;
         private Label lblCustomer;
+        private Button btnExportWord;
+        private Button btnExportExcel;
+        private Button btnExportPdf;
     }
 }

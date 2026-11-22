@@ -1,6 +1,7 @@
 using KKWholesalePOS.Core.Services;
 using KKWholesalePOS.Data;
 using KKWholesalePOS.Data.Repositories;
+using QuestPDF.Infrastructure;
 
 namespace KKWholesalePOS.UI
 {
@@ -10,6 +11,8 @@ namespace KKWholesalePOS.UI
         static void Main()
         {
             ApplicationConfiguration.Initialize();
+
+            QuestPDF.Settings.License = LicenseType.Community;
 
             using var dbContext = new AppDbContext();
 
