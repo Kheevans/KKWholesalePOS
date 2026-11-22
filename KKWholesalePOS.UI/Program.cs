@@ -1,6 +1,7 @@
 using KKWholesalePOS.Core.Services;
 using KKWholesalePOS.Data;
 using KKWholesalePOS.Data.Repositories;
+using QuestPDF.Infrastructure;
 
 namespace KKWholesalePOS.UI
 {
@@ -11,16 +12,23 @@ namespace KKWholesalePOS.UI
         {
             ApplicationConfiguration.Initialize();
 
+            QuestPDF.Settings.License = LicenseType.Community;
+
             using var dbContext = new AppDbContext();
 
             // Repositories
             var userRepository = new UserRepository(dbContext);
             var roleRepository = new RoleRepository(dbContext);
             var auditLogRepository = new AuditLogRepository(dbContext);
+            var customerRepository = new CustomerRepository(dbContext);
+            var reportingRepository = new ReportingRepository(dbContext);
+            var regularSaleRepository = new RegularSaleRepository(dbContext);
 
             // Core services
             var passwordService = new PasswordService();
-
+            var reportingService = new ReportingService(reportingRepository);
+            var regularSaleService = new RegularSaleService(regularSaleRepository);
+            
             var userManagementService = new UserManagementService(
                 userRepository,
                 passwordService);
@@ -65,7 +73,12 @@ namespace KKWholesalePOS.UI
 
             if (loginForm.ShowDialog() == DialogResult.OK)
             {
-                Application.Run(new MainForm(userSession, loginService));
+                Application.Run(new MainForm(
+                    userSession,
+                    loginService,
+                    customerRepository,
+                    reportingService,
+                    regularSaleService));
             }
         }
     }
