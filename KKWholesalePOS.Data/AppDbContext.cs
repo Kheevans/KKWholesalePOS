@@ -22,6 +22,12 @@ public class AppDbContext : DbContext
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<Customer> Customers => Set<Customer>();
+    public DbSet<RegularSale> RegularSales => Set<RegularSale>();
+    public DbSet<RegularSaleLine> RegularSaleLines => Set<RegularSaleLine>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<CreditSale> CreditSales => Set<CreditSale>();
+    public DbSet<CreditSaleLine> CreditSaleLines => Set<CreditSaleLine>();
+    public DbSet<CreditPayment> CreditPayments => Set<CreditPayment>();
 
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
@@ -90,5 +96,84 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<RegularSale>()
+            .HasMany(s => s.Lines)
+            .WithOne()
+            .HasForeignKey(l => l.RegularSaleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<RegularSaleLine>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(l => l.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<StockMovement>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(m => m.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<StockMovement>()
+        .HasOne<RegularSale>()
+        .WithMany()
+        .HasForeignKey(m => m.RegularSaleId)
+        .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<StockMovement>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(m => m.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+      
+        // Credit sale relationships
+        modelBuilder.Entity<CreditSale>()
+            .HasOne<Customer>()
+            .WithMany()
+            .HasForeignKey(s => s.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CreditSale>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(s => s.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CreditSale>()
+            .HasMany(s => s.Lines)
+            .WithOne()
+            .HasForeignKey(l => l.CreditSaleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Credit sale line relationships
+        modelBuilder.Entity<CreditSaleLine>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(l => l.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Credit payment relationships
+        modelBuilder.Entity<CreditPayment>()
+            .HasOne<CreditSale>()
+            .WithMany()
+            .HasForeignKey(p => p.CreditSaleId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CreditPayment>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Credit sale configuration
+        modelBuilder.Entity<CreditSale>()
+            .HasIndex(s => s.ReferenceNumber)
+            .IsUnique();
+
+        // TotalAmount is calculated from PurchaseAmount + CreditFee.
+        modelBuilder.Entity<CreditSale>()
+            .Ignore(s => s.TotalAmount);
+
     }
 }

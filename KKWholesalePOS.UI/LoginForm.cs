@@ -9,6 +9,7 @@ namespace KKWholesalePOS.UI
         public LoginForm(LoginService loginService)
         {
             InitializeComponent();
+            this.AcceptButton = btnLogin;
 
             _loginService = loginService;
         }
