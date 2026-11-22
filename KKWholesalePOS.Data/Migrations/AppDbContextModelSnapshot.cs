@@ -50,6 +50,115 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("AuditLogEntries");
                 });
 
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreditSaleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditSaleId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CreditPayments");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("CreditFee")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PurchaseAmount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CreditSales");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSaleLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Barcode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CreditSaleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreditSaleId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("CreditSaleLines");
+                });
+
             modelBuilder.Entity("KKWholesalePOS.Core.Models.Customer", b =>
                 {
                     b.Property<int>("Id")
@@ -334,6 +443,51 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditPayment", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.CreditSale", null)
+                        .WithMany()
+                        .HasForeignKey("CreditSaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSaleLine", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.CreditSale", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("CreditSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("KKWholesalePOS.Core.Models.RegularSaleLine", b =>
                 {
                     b.HasOne("KKWholesalePOS.Core.Models.Product", null)
@@ -405,6 +559,11 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Navigation("Role");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("KKWholesalePOS.Core.Models.Permission", b =>
