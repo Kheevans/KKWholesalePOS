@@ -23,6 +23,10 @@ public class AppDbContext : DbContext
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<Customer> Customers => Set<Customer>();
 
+//for FR2: Credit Transaction and Payment
+    public DbSet<CreditTransaction> CreditTransactions => Set<CreditTransaction>();
+    public DbSet<CreditPayment> CreditPayments => Set<CreditPayment>();
+
     protected override void OnConfiguring(
         DbContextOptionsBuilder optionsBuilder)
     {
@@ -90,5 +94,17 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<CreditTransaction>()
+            .HasOne(c =>c.Customer)
+            .WithMany()
+            .HasForeignKey(c => c.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<CreditTransaction>()
+            .HasMany(c =>c.Payments)
+            .WithOne(p => p.CreditTransaction)
+            .HasForeignKey(p => p.CreditTransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
