@@ -1,4 +1,6 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
@@ -9,11 +11,9 @@ public class AuditLogServiceTests
     [Fact]
     public void LogAction_ShouldSaveAuditEntry()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
-        var service = new AuditLogService(repository);
+        var service = CreateService(repository);
 
-        // Act
         service.LogAction(
             1,
             "Deactivate",
@@ -21,7 +21,6 @@ public class AuditLogServiceTests
             "2",
             "User account deactivated.");
 
-        // Assert
         var entry = Assert.Single(repository.Entries);
 
         Assert.Equal(1, entry.UserId);
@@ -34,14 +33,11 @@ public class AuditLogServiceTests
     [Fact]
     public void LogAction_ShouldSetTimestamp()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
-        var service = new AuditLogService(repository);
+        var service = CreateService(repository);
 
-        // Act
         service.LogAction(1, "Create", "User");
 
-        // Assert
         var entry = Assert.Single(repository.Entries);
 
         Assert.NotEqual(default, entry.Timestamp);
@@ -51,14 +47,11 @@ public class AuditLogServiceTests
     [Fact]
     public void LogAction_ShouldAllowNullUserId()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
-        var service = new AuditLogService(repository);
+        var service = CreateService(repository);
 
-        // Act
         service.LogAction(null, "LoginFailed", "Authentication");
 
-        // Assert
         var entry = Assert.Single(repository.Entries);
 
         Assert.Null(entry.UserId);
@@ -67,11 +60,9 @@ public class AuditLogServiceTests
     [Fact]
     public void LogAction_ShouldRejectEmptyAction()
     {
-        // Arrange
-        var service = new AuditLogService(
+        var service = CreateService(
             new FakeAuditLogRepository());
 
-        // Act and Assert
         Assert.Throws<ArgumentException>(() =>
             service.LogAction(1, "", "User"));
     }
@@ -79,11 +70,9 @@ public class AuditLogServiceTests
     [Fact]
     public void LogAction_ShouldRejectEmptyEntityType()
     {
-        // Arrange
-        var service = new AuditLogService(
+        var service = CreateService(
             new FakeAuditLogRepository());
 
-        // Act and Assert
         Assert.Throws<ArgumentException>(() =>
             service.LogAction(1, "Update", ""));
     }
@@ -91,7 +80,6 @@ public class AuditLogServiceTests
     [Fact]
     public void GetAllEntries_ShouldReturnAllEntries()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
 
         repository.Add(new AuditLogEntry
@@ -108,19 +96,16 @@ public class AuditLogServiceTests
             EntityType = "Product"
         });
 
-        var service = new AuditLogService(repository);
+        var service = CreateAuthorizedService(repository);
 
-        // Act
         var entries = service.GetAllEntries();
 
-        // Assert
         Assert.Equal(2, entries.Count);
     }
 
     [Fact]
     public void GetUserEntries_ShouldReturnEntriesForUser()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
 
         repository.Add(new AuditLogEntry
@@ -139,12 +124,10 @@ public class AuditLogServiceTests
             EntityType = "Product"
         });
 
-        var service = new AuditLogService(repository);
+        var service = CreateAuthorizedService(repository);
 
-        // Act
         var entries = service.GetUserEntries(1);
 
-        // Assert
         Assert.Single(entries);
         Assert.Equal(1, entries[0].UserId);
     }
@@ -152,7 +135,6 @@ public class AuditLogServiceTests
     [Fact]
     public void GetEntityEntries_ShouldReturnEntriesForEntity()
     {
-        // Arrange
         var repository = new FakeAuditLogRepository();
 
         repository.Add(new AuditLogEntry
@@ -179,15 +161,74 @@ public class AuditLogServiceTests
             EntityId = "5"
         });
 
-        var service = new AuditLogService(repository);
+        var service = CreateAuthorizedService(repository);
 
-        // Act
         var entries = service.GetEntityEntries("User", "5");
 
-        // Assert
         Assert.Single(entries);
         Assert.Equal("5", entries[0].EntityId);
         Assert.Equal("User", entries[0].EntityType);
+    }
+
+    [Fact]
+    public void GetAllEntries_WithoutPermission_ShouldThrowUnauthorizedAccessException()
+    {
+        var repository = new FakeAuditLogRepository();
+        var service = CreateService(repository);
+
+        var exception = Assert.Throws<UnauthorizedAccessException>(
+            () => service.GetAllEntries());
+
+        Assert.Contains("permission", exception.Message);
+    }
+
+    private static AuditLogService CreateService(
+        FakeAuditLogRepository repository)
+    {
+        return new AuditLogService(
+            repository,
+            new UserSessionService(),
+            new AuthorizationService());
+    }
+
+    private static AuditLogService CreateAuthorizedService(
+        FakeAuditLogRepository repository)
+    {
+        var userSession = new UserSessionService();
+
+        var user = new User
+        {
+            Id = 1,
+            Username = "testuser",
+            IsActive = true,
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    Role = new Role
+                    {
+                        Name = "Auditor",
+                        RolePermissions = new List<RolePermission>
+                        {
+                            new RolePermission
+                            {
+                                Permission = new Permission
+                                {
+                                    Name = "AuditLog.View"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        userSession.StartSession(user);
+
+        return new AuditLogService(
+            repository,
+            userSession,
+            new AuthorizationService());
     }
 
     private class FakeAuditLogRepository : IAuditLogRepository

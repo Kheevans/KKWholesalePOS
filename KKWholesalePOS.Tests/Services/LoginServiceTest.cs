@@ -1,4 +1,5 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
@@ -9,7 +10,6 @@ public class LoginServiceTests
     [Fact]
     public void Login_ShouldStartSessionForValidCredentials()
     {
-        // Arrange
         var user = CreateTestUser();
 
         var userRepository = new FakeUserRepository();
@@ -26,19 +26,21 @@ public class LoginServiceTests
 
         var session = new UserSessionService();
         var auditRepository = new FakeAuditLogRepository();
-        var auditService = new AuditLogService(auditRepository);
+
+        var auditService = new AuditLogService(
+            auditRepository,
+            session,
+            new AuthorizationService());
 
         var loginService = new LoginService(
             authenticationService,
             session,
             auditService);
 
-        // Act
         bool result = loginService.Login(
             "testuser",
             "Password123");
 
-        // Assert
         Assert.True(result);
         Assert.True(session.IsAuthenticated);
         Assert.Equal(user.Id, session.CurrentUser!.Id);
@@ -51,7 +53,6 @@ public class LoginServiceTests
     [Fact]
     public void Login_ShouldNotStartSessionForInvalidCredentials()
     {
-        // Arrange
         var user = CreateTestUser();
 
         var userRepository = new FakeUserRepository();
@@ -68,19 +69,21 @@ public class LoginServiceTests
 
         var session = new UserSessionService();
         var auditRepository = new FakeAuditLogRepository();
-        var auditService = new AuditLogService(auditRepository);
+
+        var auditService = new AuditLogService(
+            auditRepository,
+            session,
+            new AuthorizationService());
 
         var loginService = new LoginService(
             authenticationService,
             session,
             auditService);
 
-        // Act
         bool result = loginService.Login(
             "testuser",
             "WrongPassword");
 
-        // Assert
         Assert.False(result);
         Assert.False(session.IsAuthenticated);
 
@@ -92,7 +95,6 @@ public class LoginServiceTests
     [Fact]
     public void Logout_ShouldEndSessionAndRecordAction()
     {
-        // Arrange
         var user = CreateTestUser();
 
         var userRepository = new FakeUserRepository();
@@ -111,17 +113,19 @@ public class LoginServiceTests
         session.StartSession(user);
 
         var auditRepository = new FakeAuditLogRepository();
-        var auditService = new AuditLogService(auditRepository);
+
+        var auditService = new AuditLogService(
+            auditRepository,
+            session,
+            new AuthorizationService());
 
         var loginService = new LoginService(
             authenticationService,
             session,
             auditService);
 
-        // Act
         loginService.Logout();
 
-        // Assert
         Assert.False(session.IsAuthenticated);
 
         Assert.Contains(
@@ -132,7 +136,6 @@ public class LoginServiceTests
     [Fact]
     public void Logout_ShouldDoNothingWhenNoUserIsLoggedIn()
     {
-        // Arrange
         var userRepository = new FakeUserRepository();
         var passwordService = new PasswordService();
 
@@ -142,17 +145,19 @@ public class LoginServiceTests
 
         var session = new UserSessionService();
         var auditRepository = new FakeAuditLogRepository();
-        var auditService = new AuditLogService(auditRepository);
+
+        var auditService = new AuditLogService(
+            auditRepository,
+            session,
+            new AuthorizationService());
 
         var loginService = new LoginService(
             authenticationService,
             session,
             auditService);
 
-        // Act
         loginService.Logout();
 
-        // Assert
         Assert.False(session.IsAuthenticated);
         Assert.Empty(auditRepository.Entries);
     }

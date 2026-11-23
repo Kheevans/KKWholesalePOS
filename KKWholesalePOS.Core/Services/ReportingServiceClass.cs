@@ -1,4 +1,5 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Reports;
 
 namespace KKWholesalePOS.Core.Services;
@@ -6,16 +7,39 @@ namespace KKWholesalePOS.Core.Services;
 public class ReportingService
 {
     private readonly IReportingRepository _reportingRepository;
+    private readonly UserSessionService _userSession;
+    private readonly AuthorizationService _authorizationService;
 
-    public ReportingService(IReportingRepository reportingRepository)
+    public ReportingService(
+        IReportingRepository reportingRepository,
+        UserSessionService userSession,
+        AuthorizationService authorizationService)
     {
         _reportingRepository = reportingRepository;
+        _userSession = userSession;
+        _authorizationService = authorizationService;
+    }
+
+    private void RequirePermission(string permissionName)
+    {
+        var currentUser = _userSession.CurrentUser;
+
+        if (currentUser == null ||
+            !_authorizationService.HasPermission(
+                currentUser,
+                permissionName))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
     }
 
     public SalesReportResult GetSalesReport(
         DateTime startDate,
         DateTime endDate)
     {
+        RequirePermission("Reports.View");
+
         ValidateDateRange(startDate, endDate);
 
         return _reportingRepository.GetSalesReport(
@@ -28,6 +52,8 @@ public class ReportingService
         DateTime startDate,
         DateTime endDate)
     {
+        RequirePermission("Reports.View");
+
         ValidateCustomerAndDateRange(
             customerId, startDate, endDate);
 
@@ -42,6 +68,8 @@ public class ReportingService
         DateTime startDate,
         DateTime endDate)
     {
+        RequirePermission("Reports.View");
+
         ValidateCustomerAndDateRange(
             customerId, startDate, endDate);
 
@@ -53,6 +81,8 @@ public class ReportingService
 
     public InventoryReportResult GetInventoryReport()
     {
+        RequirePermission("Reports.View");
+
         return _reportingRepository.GetInventoryReport();
     }
 

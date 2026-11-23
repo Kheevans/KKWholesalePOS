@@ -1,4 +1,5 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -6,10 +7,31 @@ namespace KKWholesalePOS.Core.Services;
 public class AuditLogService
 {
     private readonly IAuditLogRepository _auditLogRepository;
+    private readonly UserSessionService _userSession;
+    private readonly AuthorizationService _authorizationService;
 
-    public AuditLogService(IAuditLogRepository auditLogRepository)
+    public AuditLogService(
+        IAuditLogRepository auditLogRepository,
+        UserSessionService userSession,
+        AuthorizationService authorizationService)
     {
         _auditLogRepository = auditLogRepository;
+        _userSession = userSession;
+        _authorizationService = authorizationService;
+    }
+
+    private void RequirePermission(string permissionName)
+    {
+        var currentUser = _userSession.CurrentUser;
+
+        if (currentUser == null ||
+            !_authorizationService.HasPermission(
+                currentUser,
+                permissionName))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
     }
 
     public void LogAction(
@@ -49,11 +71,13 @@ public class AuditLogService
 
     public List<AuditLogEntry> GetAllEntries()
     {
+        RequirePermission("AuditLog.View");
         return _auditLogRepository.GetAll();
     }
 
     public List<AuditLogEntry> GetUserEntries(int userId)
     {
+        RequirePermission("AuditLog.View");
         return _auditLogRepository.GetByUserId(userId);
     }
 
@@ -61,6 +85,8 @@ public class AuditLogService
         string entityType,
         string entityId)
     {
+        RequirePermission("AuditLog.View");
+
         return _auditLogRepository.GetByEntity(
             entityType,
             entityId);

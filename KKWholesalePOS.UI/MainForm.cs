@@ -29,6 +29,7 @@ namespace KKWholesalePOS.UI
         private readonly RoleManagementService _roleManagementService;
         private readonly PermissionManagementService _permissionManagementService;
         private readonly AuditLogService _auditLogService;
+        private readonly AuthorizationService _authorizationService;
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
@@ -40,6 +41,19 @@ namespace KKWholesalePOS.UI
         private DataGridView _permissionsGrid = null!;
         private DataGridView _auditLogGrid = null!;
         private Label _permissionCountLabel = null!;
+        private TabControl _userManagementTabControl = null!;
+        private TabPage _usersTab = null!;
+        private TabPage _rolesTab = null!;
+        private TabPage _permissionsTab = null!;
+        private TabPage _auditLogTab = null!;
+        private Button _createUserButton = null!;
+        private Button _activateUserButton = null!;
+        private Button _deactivateUserButton = null!;
+        private Button _assignRoleButton = null!;
+        private Button _removeRoleButton = null!;
+        private Button _createRoleButton = null!;
+        private Button _assignPermissionButton = null!;
+        private Button _removePermissionButton = null!;
         private readonly System.Drawing.Color _selectedButtonColor =
             System.Drawing.Color.FromArgb(59, 130, 246);
         private readonly PrintDocument _reportPrintDocument = new();
@@ -56,10 +70,12 @@ namespace KKWholesalePOS.UI
             UserManagementService userManagementService,
             RoleManagementService roleManagementService,
             PermissionManagementService permissionManagementService,
-            AuditLogService auditLogService)
-
+            AuditLogService auditLogService,
+            AuthorizationService authorizationService)
         {
             InitializeComponent();
+
+            this.FormClosing += MainForm_FormClosing;
 
             ConfigureDashboardLayout();
             ConfigureUserManagementLayout();
@@ -74,25 +90,43 @@ namespace KKWholesalePOS.UI
             _reportPrintDocument.PrintPage += ReportPrintDocument_PrintPage;
 
             btnPrintReport.Click += btnPrintReport_Click;
+            
             _reportingService = reportingService;
             _dashboardService = dashboardService;
-
             _userSession = userSession;
             _loginService = loginService;
             _customerRepository = customerRepository;
             _regularSaleService = regularSaleService;
-
             _userManagementService = userManagementService;
             _roleManagementService = roleManagementService;
             _permissionManagementService = permissionManagementService;
             _auditLogService = auditLogService;
+            _authorizationService = authorizationService;
 
-            LoadAuditLog();
-            LoadUsers();
-            LoadRoles();
-            LoadPermissions();
+            if (HasPermission("Users.Manage") ||
+                HasPermission("Roles.Manage"))
+            {
+                LoadUsers();
+            }
+
+            if (HasPermission("Roles.Manage") ||
+                HasPermission("Permissions.Manage"))
+            {
+                LoadRoles();
+            }
+
+            if (HasPermission("Permissions.Manage"))
+            {
+                LoadPermissions();
+            }
+
+            if (HasPermission("AuditLog.View"))
+            {
+                LoadAuditLog();
+            }
             LoadCustomers();
             ConfigureReportFilters();
+            ApplyNavigationPermissions();
 
             cmbReportType.SelectedIndexChanged += cmbReportType_SelectedIndexChanged;
 
@@ -110,15 +144,25 @@ namespace KKWholesalePOS.UI
 
             UpdateSessionDisplay();
 
-            // Open Dashboard by default
-            ShowPage(
-                pnlDashboard,
-                "Dashboard",
-                btnDashboard);
-
-            LoadDashboardSummary();
+            ShowDefaultPage();
         }
 
+        private void MainForm_FormClosing(
+            object? sender,
+    FormClosingEventArgs e)
+        {
+            if (_userSession.CurrentUser != null &&
+                e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+
+                MessageBox.Show(
+                    "You must log out before closing the application.",
+                    "Logout Required",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
 
         private void ConfigureDashboardLayout()
         {
@@ -387,17 +431,57 @@ namespace KKWholesalePOS.UI
                 DateTime.Now.ToString("dd MMM yyyy");
         }
 
+        private void ApplyNavigationPermissions()
+        {
+            btnDashboard.Enabled = HasPermission("Dashboard.View");
+            btnReports.Enabled = HasPermission("Reports.View");
+
+            btnUserManagement.Enabled =
+                HasPermission("Users.Manage") ||
+                HasPermission("Roles.Manage") ||
+                HasPermission("Permissions.Manage") ||
+                HasPermission("AuditLog.View");
+
+            btnSettings.Enabled = HasPermission("Settings.Manage");
+
+            ApplyManagementTabPermissions();
+            ApplyManagementActionPermissions();
+        }
+
+
         private void ShowPage(
             Panel selectedPanel,
             string pageTitle,
             Button selectedButton)
         {
+            if (!CanAccessPage(pageTitle))
+            {
+                MessageBox.Show("You do not have permission to access this page.", "Access Denied", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
             if (pageTitle == "User Management")
             {
-                LoadUsers();
-                LoadRoles();
-                LoadPermissions();
-                LoadAuditLog();
+                if (HasPermission("Users.Manage") ||
+                    HasPermission("Roles.Manage"))
+                {
+                    LoadUsers();
+                }
+
+                if (HasPermission("Roles.Manage") ||
+                    HasPermission("Permissions.Manage"))
+                {
+                    LoadRoles();
+                }
+
+                if (HasPermission("Permissions.Manage"))
+                {
+                    LoadPermissions();
+                }
+
+                if (HasPermission("AuditLog.View"))
+                {
+                    LoadAuditLog();
+                }
             }
 
             // Hide all pages
@@ -432,8 +516,40 @@ namespace KKWholesalePOS.UI
             selectedButton.BackColor = _selectedButtonColor;
         }
 
+        private void ShowDefaultPage()
+        {
+            if (CanAccessPage("Dashboard"))
+            {
+                ShowPage(pnlDashboard, "Dashboard", btnDashboard);
+                LoadDashboardSummary();
+            }
+            else if (CanAccessPage("Reports"))
+            {
+                ShowPage(pnlReports, "Reports", btnReports);
+            }
+            else if (CanAccessPage("User Management"))
+            {
+                ShowPage(pnlUserManagement, "User Management", btnUserManagement);
+            }
+            else if (CanAccessPage("Settings"))
+            {
+                ShowPage(pnlSettings, "Settings", btnSettings);
+            }
+            else
+            {
+                MessageBox.Show(
+                    "Your account does not have access to any system pages. Please contact the system administrator.",
+                    "No Access",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+        }
+
         private void btnDashboard_Click(object sender, EventArgs e)
         {
+            if (!CanAccessPage("Dashboard"))
+                return;
+
             ShowPage(pnlDashboard, "Dashboard", btnDashboard);
             LoadDashboardSummary();
         }
@@ -529,14 +645,8 @@ namespace KKWholesalePOS.UI
             if (loginForm.ShowDialog() == DialogResult.OK)
             {
                 UpdateSessionDisplay();
-
-                ShowPage(
-                    pnlDashboard,
-                    "Dashboard",
-                    btnDashboard);
-
-                LoadDashboardSummary();
-
+                ApplyNavigationPermissions();
+                ShowDefaultPage();
                 Show();
             }
             else
@@ -545,8 +655,24 @@ namespace KKWholesalePOS.UI
             }
         }
 
+        private bool RequirePermission(string permissionName)
+        {
+            if (HasPermission(permissionName))
+                return true;
+
+            MessageBox.Show(
+                "You do not have permission to perform this action.",
+                "Access Denied",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Warning);
+
+            return false;
+        }
+
         private void btnGenerateReport_Click(object? sender, EventArgs e)
         {
+            if (!RequirePermission("Reports.View"))
+                return;
             try
             {
                 DateTime startDate = dtpStartDate.Value.Date;
@@ -621,6 +747,9 @@ namespace KKWholesalePOS.UI
 
         private void btnPrintReport_Click(object? sender, EventArgs e)
         {
+            if (!RequirePermission("Reports.View"))
+                return;
+
             if (dgvReportResults.Rows.Count == 0)
             {
                 MessageBox.Show(
@@ -888,6 +1017,8 @@ namespace KKWholesalePOS.UI
 
         private void btnExportPdf_Click(object? sender, EventArgs e)
         {
+            if (!RequirePermission("Reports.Export"))
+                return;
             List<DataGridViewColumn> columns = GetExportColumns();
             List<DataGridViewRow> rows = GetExportRows();
 
@@ -1006,6 +1137,8 @@ namespace KKWholesalePOS.UI
 
         private void btnExportExcel_Click(object? sender, EventArgs e)
         {
+            if (!RequirePermission("Reports.Export"))
+                return;
             List<DataGridViewColumn> columns = GetExportColumns();
             List<DataGridViewRow> rows = GetExportRows();
 
@@ -1124,6 +1257,8 @@ namespace KKWholesalePOS.UI
 
         private void btnExportWord_Click(object? sender, EventArgs e)
         {
+            if (!RequirePermission("Reports.Export"))
+                return;
             List<DataGridViewColumn> columns = GetExportColumns();
             List<DataGridViewRow> rows = GetExportRows();
 
@@ -1262,50 +1397,95 @@ namespace KKWholesalePOS.UI
         {
             pnlUserManagement.Controls.Clear();
 
-            var tabControl = new TabControl
+            _userManagementTabControl = new TabControl
             {
                 Dock = DockStyle.Fill,
                 Font = new System.Drawing.Font("Segoe UI", 10F),
                 Padding = new Point(15, 5)
             };
 
-            var usersTab = new TabPage("Users")
+            _usersTab = new TabPage("Users")
             {
                 Name = "tabUsers",
                 BackColor = System.Drawing.Color.White
             };
 
-            var rolesTab = new TabPage("Roles")
+            _rolesTab = new TabPage("Roles")
             {
                 Name = "tabRoles",
                 BackColor = System.Drawing.Color.White
             };
 
-            var permissionsTab = new TabPage("Permissions")
+            _permissionsTab = new TabPage("Permissions")
             {
                 Name = "tabPermissions",
                 BackColor = System.Drawing.Color.White
             };
 
-            var auditLogTab = new TabPage("Audit Log")
+            _auditLogTab = new TabPage("Audit Log")
             {
                 Name = "tabAuditLog",
                 BackColor = System.Drawing.Color.White
             };
 
-            tabControl.TabPages.Add(usersTab);
-            tabControl.TabPages.Add(rolesTab);
-            tabControl.TabPages.Add(permissionsTab);
-            tabControl.TabPages.Add(auditLogTab);
+            _userManagementTabControl.TabPages.Add(_usersTab);
+            _userManagementTabControl.TabPages.Add(_rolesTab);
+            _userManagementTabControl.TabPages.Add(_permissionsTab);
+            _userManagementTabControl.TabPages.Add(_auditLogTab);
 
-            pnlUserManagement.Controls.Add(tabControl);
+            pnlUserManagement.Controls.Add(_userManagementTabControl);
 
-            ConfigureUsersTab(usersTab);
-            ConfigureRolesTab(rolesTab);
-            ConfigurePermissionsTab(permissionsTab);
-            ConfigureAuditLogTab(auditLogTab);
+            ConfigureUsersTab(_usersTab);
+            ConfigureRolesTab(_rolesTab);
+            ConfigurePermissionsTab(_permissionsTab);
+            ConfigureAuditLogTab(_auditLogTab);
         }
 
+        private void ApplyManagementTabPermissions()
+        {
+            _userManagementTabControl.TabPages.Clear();
+
+            if (HasPermission("Users.Manage") ||
+                HasPermission("Roles.Manage"))
+            {
+                _userManagementTabControl.TabPages.Add(_usersTab);
+            }
+
+            if (HasPermission("Roles.Manage") ||
+                HasPermission("Permissions.Manage"))
+            {
+                _userManagementTabControl.TabPages.Add(_rolesTab);
+            }
+
+            if (HasPermission("Permissions.Manage"))
+            {
+                _userManagementTabControl.TabPages.Add(_permissionsTab);
+            }
+
+            if (HasPermission("AuditLog.View"))
+            {
+                _userManagementTabControl.TabPages.Add(_auditLogTab);
+            }
+        }
+
+        private void ApplyManagementActionPermissions()
+        {
+            bool canManageUsers = HasPermission("Users.Manage");
+            bool canManageRoles = HasPermission("Roles.Manage");
+            bool canManagePermissions = HasPermission("Permissions.Manage");
+
+            _createUserButton.Enabled = canManageUsers;
+            _activateUserButton.Enabled = canManageUsers;
+            _deactivateUserButton.Enabled = canManageUsers;
+
+            _assignRoleButton.Enabled = canManageRoles;
+            _removeRoleButton.Enabled = canManageRoles;
+
+            _createRoleButton.Enabled = canManageRoles;
+
+            _assignPermissionButton.Enabled = canManagePermissions;
+            _removePermissionButton.Enabled = canManagePermissions;
+        }
 
         private void ConfigureRolesTab(TabPage rolesTab)
         {
@@ -1384,7 +1564,7 @@ namespace KKWholesalePOS.UI
                 Padding = new Padding(0, 10, 0, 0)
             };
 
-            var createRoleButton = new Button
+            _createRoleButton = new Button
             {
                 Name = "btnCreateRole",
                 Text = "Create Role",
@@ -1394,7 +1574,7 @@ namespace KKWholesalePOS.UI
                 FlatStyle = FlatStyle.Flat
             };
 
-            var assignPermissionButton = new Button
+            _assignPermissionButton = new Button
             {
                 Name = "btnAssignPermission",
                 Text = "Assign Permission",
@@ -1404,7 +1584,7 @@ namespace KKWholesalePOS.UI
                 FlatStyle = FlatStyle.Flat
             };
 
-            var removePermissionButton = new Button
+            _removePermissionButton = new Button
             {
                 Name = "btnRemovePermission",
                 Text = "Remove Permission",
@@ -1414,13 +1594,13 @@ namespace KKWholesalePOS.UI
                 FlatStyle = FlatStyle.Flat
             };
 
-            buttonPanel.Controls.Add(createRoleButton);
-            buttonPanel.Controls.Add(assignPermissionButton);
-            buttonPanel.Controls.Add(removePermissionButton);
+            buttonPanel.Controls.Add(_createRoleButton);
+            buttonPanel.Controls.Add(_assignPermissionButton);
+            buttonPanel.Controls.Add(_removePermissionButton);
 
-            createRoleButton.Click += (sender, e) => ShowCreateRoleDialog();
-            assignPermissionButton.Click += (sender, e) => ShowAssignPermissionDialog();
-            removePermissionButton.Click += (sender, e) => ShowRemovePermissionDialog();
+            _createRoleButton.Click += (sender, e) => ShowCreateRoleDialog();
+            _assignPermissionButton.Click += (sender, e) => ShowAssignPermissionDialog();
+            _removePermissionButton.Click += (sender, e) => ShowRemovePermissionDialog();
 
             layout.Controls.Add(headingPanel, 0, 0);
             layout.Controls.Add(rolesGrid, 0, 1);
@@ -1561,7 +1741,13 @@ namespace KKWholesalePOS.UI
 
             buttonPanel.Controls.Add(refreshButton);
 
-            refreshButton.Click += (sender, e) => LoadAuditLog();
+            refreshButton.Click += (sender, e) =>
+            {
+                if (!RequirePermission("AuditLog.View"))
+                    return;
+
+                LoadAuditLog();
+            };
 
             var titleLabel = new Label
             {
@@ -1625,6 +1811,8 @@ namespace KKWholesalePOS.UI
 
         private void ShowCreateRoleDialog()
         {
+            if (!RequirePermission("Roles.Manage"))
+                return;
             using var dialog = new Form
             {
                 Text = "Create Role",
@@ -1787,6 +1975,8 @@ namespace KKWholesalePOS.UI
 
         private void ShowAssignPermissionDialog()
         {
+            if (!RequirePermission("Permissions.Manage"))
+                return;
             if (_rolesGrid.CurrentRow == null)
             {
                 MessageBox.Show(
@@ -1939,6 +2129,8 @@ namespace KKWholesalePOS.UI
 
         private void ShowRemovePermissionDialog()
         {
+            if (!RequirePermission("Permissions.Manage"))
+                return;
             if (_rolesGrid.CurrentRow == null)
             {
                 MessageBox.Show(
@@ -2092,7 +2284,6 @@ namespace KKWholesalePOS.UI
             dialog.ShowDialog(this);
         }
 
-
         private void ConfigureUsersTab(TabPage usersTab)
         {
             usersTab.Controls.Clear();
@@ -2170,7 +2361,7 @@ namespace KKWholesalePOS.UI
                 Padding = new Padding(0, 10, 0, 0)
             };
 
-            var createButton = new Button
+            _createUserButton = new Button
             {
                 Name = "btnCreateUser",
                 Text = "Create User",
@@ -2180,45 +2371,45 @@ namespace KKWholesalePOS.UI
                 FlatStyle = FlatStyle.Flat
             };
 
-            var activateButton = new Button
+            _activateUserButton = new Button
             {
                 Name = "btnActivateUser",
                 Text = "Activate",
                 Size = new System.Drawing.Size(130, 38)
             };
 
-            var deactivateButton = new Button
+            _deactivateUserButton = new Button
             {
                 Name = "btnDeactivateUser",
                 Text = "Deactivate",
                 Size = new System.Drawing.Size(130, 38)
             };
 
-            var assignRoleButton = new Button
+            _assignRoleButton = new Button
             {
                 Name = "btnAssignRole",
                 Text = "Assign Role",
                 Size = new System.Drawing.Size(130, 38)
             };
 
-            var removeRoleButton = new Button
+            _removeRoleButton = new Button
             {
                 Name = "btnRemoveRole",
                 Text = "Remove Role",
                 Size = new System.Drawing.Size(150, 38)
             };
 
-            createButton.Click += (sender, e) => ShowCreateUserDialog();
-            activateButton.Click += (sender, e) => ActivateSelectedUser();
-            deactivateButton.Click += (sender, e) => DeactivateSelectedUser();
-            assignRoleButton.Click += (sender, e) => ShowAssignRoleDialog();
-            removeRoleButton.Click += (sender, e) => ShowRemoveRoleDialog();
+            _createUserButton.Click += (sender, e) => ShowCreateUserDialog();
+            _activateUserButton.Click += (sender, e) => ActivateSelectedUser();
+            _deactivateUserButton.Click += (sender, e) => DeactivateSelectedUser();
+            _assignRoleButton.Click += (sender, e) => ShowAssignRoleDialog();
+            _removeRoleButton.Click += (sender, e) => ShowRemoveRoleDialog();
 
-            buttonPanel.Controls.Add(createButton);
-            buttonPanel.Controls.Add(activateButton);
-            buttonPanel.Controls.Add(deactivateButton);
-            buttonPanel.Controls.Add(assignRoleButton);
-            buttonPanel.Controls.Add(removeRoleButton);
+            buttonPanel.Controls.Add(_createUserButton);
+            buttonPanel.Controls.Add(_activateUserButton);
+            buttonPanel.Controls.Add(_deactivateUserButton);
+            buttonPanel.Controls.Add(_assignRoleButton);
+            buttonPanel.Controls.Add(_removeRoleButton);
 
             layout.Controls.Add(headingPanel, 0, 0);
             layout.Controls.Add(usersGrid, 0, 1);
@@ -2230,6 +2421,8 @@ namespace KKWholesalePOS.UI
 
         private void ShowAssignRoleDialog()
         {
+            if (!RequirePermission("Roles.Manage"))
+                return;
             if (!TryGetSelectedUserId(out int userId))
                 return;
 
@@ -2297,10 +2490,10 @@ namespace KKWholesalePOS.UI
 
             dialog.Controls.AddRange(new System.Windows.Forms.Control[]
             {
-        roleLabel,
-        roleComboBox,
-        assignButton,
-        cancelButton
+                roleLabel,
+                roleComboBox,
+                assignButton,
+                cancelButton
             });
 
             dialog.AcceptButton = assignButton;
@@ -2344,6 +2537,8 @@ namespace KKWholesalePOS.UI
 
         private void ShowRemoveRoleDialog()
         {
+            if (!RequirePermission("Roles.Manage"))
+                return;
             if (!TryGetSelectedUserId(out int userId))
                 return;
 
@@ -2405,10 +2600,10 @@ namespace KKWholesalePOS.UI
 
             dialog.Controls.AddRange(new System.Windows.Forms.Control[]
             {
-        roleLabel,
-        roleComboBox,
-        removeButton,
-        cancelButton
+                roleLabel,
+                roleComboBox,
+                removeButton,
+                cancelButton
             });
 
             dialog.AcceptButton = removeButton;
@@ -2462,6 +2657,33 @@ namespace KKWholesalePOS.UI
         }
 
 
+        private bool HasPermission(string permissionName)
+        {
+            var currentUser = _userSession.CurrentUser;
+
+            return currentUser != null &&
+                   _authorizationService.HasPermission(
+                       currentUser,
+                       permissionName);
+        }
+
+
+        private bool CanAccessPage(string pageTitle)
+        {
+            return pageTitle switch
+            {
+                "Dashboard" => HasPermission("Dashboard.View"),
+                "Reports" => HasPermission("Reports.View"),
+                "User Management" =>
+                    HasPermission("Users.Manage") ||
+                    HasPermission("Roles.Manage") ||
+                    HasPermission("Permissions.Manage") ||
+                    HasPermission("AuditLog.View"),
+                "Settings" => HasPermission("Settings.Manage"),
+                _ => false
+            };
+        }
+
         private bool TryGetSelectedUserId(out int userId)
         {
             userId = 0;
@@ -2495,10 +2717,12 @@ namespace KKWholesalePOS.UI
 
         private void ShowCreateUserDialog()
         {
+            if (!RequirePermission("Users.Manage"))
+                return;
             using var dialog = new Form
             {
                 Text = "Create User",
-                Size = new System.Drawing.Size(420, 250),
+                Size = new System.Drawing.Size(450, 250),
                 StartPosition = FormStartPosition.CenterParent,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 MaximizeBox = false,
@@ -2599,6 +2823,8 @@ namespace KKWholesalePOS.UI
 
         private void DeactivateSelectedUser()
         {
+            if (!RequirePermission("Users.Manage"))
+                return;
             if (!TryGetSelectedUserId(out int userId))
             {
                 return;
@@ -2657,6 +2883,8 @@ namespace KKWholesalePOS.UI
 
         private void ActivateSelectedUser()
         {
+            if (!RequirePermission("Users.Manage"))
+                return;
             if (!TryGetSelectedUserId(out int userId))
             {
                 return;

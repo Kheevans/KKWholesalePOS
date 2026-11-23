@@ -1,4 +1,5 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -7,21 +8,65 @@ public class UserManagementService
 {
     private readonly IUserRepository _userRepository;
     private readonly PasswordService _passwordService;
-
-    public List<User> GetAllUsers()
-    {
-        return _userRepository.GetAll();
-    }
+    private readonly UserSessionService _userSession;
+    private readonly AuthorizationService _authorizationService;
 
     public UserManagementService(
         IUserRepository userRepository,
-        PasswordService passwordService)
+        PasswordService passwordService,
+        UserSessionService userSession,
+        AuthorizationService authorizationService)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
+        _userSession = userSession;
+        _authorizationService = authorizationService;
+    }
+
+    private bool HasPermission(string permissionName)
+    {
+        var currentUser = _userSession.CurrentUser;
+
+        return currentUser != null &&
+               _authorizationService.HasPermission(
+                   currentUser,
+                   permissionName);
+    }
+
+    private void RequirePermission(string permissionName)
+    {
+        if (!HasPermission(permissionName))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
+    }
+
+    public List<User> GetAllUsers()
+    {
+        if (!HasPermission("Users.Manage") &&
+            !HasPermission("Roles.Manage"))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to view users.");
+        }
+
+        return _userRepository.GetAll();
     }
 
     public User CreateUser(string username, string password)
+    {
+        RequirePermission("Users.Manage");
+        return CreateUserCore(username, password);
+    }
+
+    // Used only during initial system setup, before login.
+    internal User CreateInitialUser(string username, string password)
+    {
+        return CreateUserCore(username, password);
+    }
+
+    private User CreateUserCore(string username, string password)
     {
         if (string.IsNullOrWhiteSpace(username))
         {
@@ -64,6 +109,8 @@ public class UserManagementService
 
     public void DeactivateUser(int userId)
     {
+        RequirePermission("Users.Manage");
+
         var user = _userRepository.GetById(userId);
 
         if (user == null)
@@ -80,6 +127,8 @@ public class UserManagementService
 
     public void ActivateUser(int userId)
     {
+        RequirePermission("Users.Manage");
+
         var user = _userRepository.GetById(userId);
 
         if (user == null)

@@ -1,4 +1,6 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
@@ -11,24 +13,72 @@ public class UserManagementServiceTests
     private UserManagementService CreateService(
         FakeUserRepository repository)
     {
+        var userSession = CreateAuthorizedSession("Users.Manage");
+
         return new UserManagementService(
             repository,
-            _passwordService);
+            _passwordService,
+            userSession,
+            new AuthorizationService());
+    }
+
+    private UserManagementService CreateUnauthorizedService(
+        FakeUserRepository repository)
+    {
+        return new UserManagementService(
+            repository,
+            _passwordService,
+            new UserSessionService(),
+            new AuthorizationService());
+    }
+
+    private static UserSessionService CreateAuthorizedSession(
+        string permissionName)
+    {
+        var userSession = new UserSessionService();
+
+        var user = new User
+        {
+            Id = 100,
+            Username = "testadmin",
+            IsActive = true,
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    Role = new Role
+                    {
+                        Name = "Administrator",
+                        RolePermissions = new List<RolePermission>
+                        {
+                            new RolePermission
+                            {
+                                Permission = new Permission
+                                {
+                                    Name = permissionName
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        userSession.StartSession(user);
+
+        return userSession;
     }
 
     [Fact]
     public void CreateUser_ShouldSaveUserWithHashedPassword()
     {
-        // Arrange
         var repository = new FakeUserRepository();
         var service = CreateService(repository);
 
-        // Act
         var user = service.CreateUser(
             "admin",
             "AdminPassword123!");
 
-        // Assert
         Assert.Equal("admin", user.Username);
         Assert.True(user.IsActive);
         Assert.NotEqual("AdminPassword123!", user.PasswordHash);
@@ -40,13 +90,11 @@ public class UserManagementServiceTests
     [Fact]
     public void CreateUser_ShouldRejectDuplicateUsername()
     {
-        // Arrange
         var repository = new FakeUserRepository();
         var service = CreateService(repository);
 
         service.CreateUser("admin", "AdminPassword123!");
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.CreateUser("admin", "AnotherPassword123!"));
     }
@@ -54,10 +102,8 @@ public class UserManagementServiceTests
     [Fact]
     public void CreateUser_ShouldRejectEmptyUsername()
     {
-        // Arrange
         var service = CreateService(new FakeUserRepository());
 
-        // Act and Assert
         Assert.Throws<ArgumentException>(() =>
             service.CreateUser("", "AdminPassword123!"));
     }
@@ -65,10 +111,8 @@ public class UserManagementServiceTests
     [Fact]
     public void CreateUser_ShouldRejectShortPassword()
     {
-        // Arrange
         var service = CreateService(new FakeUserRepository());
 
-        // Act and Assert
         Assert.Throws<ArgumentException>(() =>
             service.CreateUser("admin", "short"));
     }
@@ -76,24 +120,20 @@ public class UserManagementServiceTests
     [Fact]
     public void DeactivateUser_ShouldSetAccountInactive()
     {
-        // Arrange
         var repository = new FakeUserRepository();
         var service = CreateService(repository);
 
         var user = service.CreateUser(
             "admin", "AdminPassword123!");
 
-        // Act
         service.DeactivateUser(user.Id);
 
-        // Assert
         Assert.False(user.IsActive);
     }
 
     [Fact]
     public void ActivateUser_ShouldSetAccountActive()
     {
-        // Arrange
         var repository = new FakeUserRepository();
         var service = CreateService(repository);
 
@@ -102,34 +142,64 @@ public class UserManagementServiceTests
 
         user.IsActive = false;
 
-        // Act
         service.ActivateUser(user.Id);
 
-        // Assert
         Assert.True(user.IsActive);
     }
 
     [Fact]
     public void DeactivateUser_ShouldRejectUnknownUser()
     {
-        // Arrange
         var service = CreateService(new FakeUserRepository());
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.DeactivateUser(999));
     }
 
+    [Fact]
+    public void CreateUser_WithoutPermission_ShouldThrowUnauthorizedAccessException()
+    {
+        var service = CreateUnauthorizedService(
+            new FakeUserRepository());
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.CreateUser("admin", "AdminPassword123!"));
+    }
+
+    [Fact]
+    public void GetAllUsers_ShouldReturnAllUsers()
+    {
+        var repository = new FakeUserRepository();
+
+        repository.Add(new User
+        {
+            Username = "admin",
+            IsActive = true
+        });
+
+        repository.Add(new User
+        {
+            Username = "cashier",
+            IsActive = true
+        });
+
+        var service = CreateService(repository);
+
+        var users = service.GetAllUsers();
+
+        Assert.Equal(2, users.Count);
+    }
+
     private class FakeUserRepository : IUserRepository
     {
-        public List<User> GetAll()
-        {
-            return new List<User>();
-        }
-
         public List<User> Users { get; } = new();
 
         private int _nextId = 1;
+
+        public List<User> GetAll()
+        {
+            return Users;
+        }
 
         public User? GetByUsername(string username)
         {

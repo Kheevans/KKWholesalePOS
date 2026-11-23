@@ -1,4 +1,5 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 
@@ -8,16 +9,50 @@ public class PermissionManagementService
 {
     private readonly IPermissionRepository _permissionRepository;
     private readonly IRoleRepository _roleRepository;
-
+    private readonly UserSessionService _userSession;
+    private readonly AuthorizationService _authorizationService;
+    internal List<Permission> GetAllPermissionsForInitialSetup()
+    {
+        return _permissionRepository.GetAll();
+    }
     public PermissionManagementService(
         IPermissionRepository permissionRepository,
-        IRoleRepository roleRepository)
+        IRoleRepository roleRepository,
+        UserSessionService userSession,
+        AuthorizationService authorizationService)
     {
         _permissionRepository = permissionRepository;
         _roleRepository = roleRepository;
+        _userSession = userSession;
+        _authorizationService = authorizationService;
+    }
+
+    private void RequirePermission(string permissionName)
+    {
+        var currentUser = _userSession.CurrentUser;
+
+        if (currentUser == null ||
+            !_authorizationService.HasPermission(
+                currentUser,
+                permissionName))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
     }
 
     public Permission CreatePermission(string name, string description)
+    {
+        RequirePermission("Permissions.Manage");
+        return CreatePermissionCore(name, description);
+    }
+
+    internal Permission CreateInitialPermission(string name, string description)
+    {
+        return CreatePermissionCore(name, description);
+    }
+
+    private Permission CreatePermissionCore(string name, string description)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -47,6 +82,17 @@ public class PermissionManagementService
     }
 
     public void AssignPermissionToRole(int roleId, int permissionId)
+    {
+        RequirePermission("Permissions.Manage");
+        AssignPermissionToRoleCore(roleId, permissionId);
+    }
+
+    internal void AssignInitialPermissionToRole(int roleId, int permissionId)
+    {
+        AssignPermissionToRoleCore(roleId, permissionId);
+    }
+
+    private void AssignPermissionToRoleCore(int roleId, int permissionId)
     {
         var role = _roleRepository.GetById(roleId);
 
@@ -84,6 +130,8 @@ public class PermissionManagementService
 
     public void RemovePermissionFromRole(int roleId, int permissionId)
     {
+        RequirePermission("Permissions.Manage");
+
         var role = _roleRepository.GetById(roleId);
 
         if (role == null)
@@ -108,6 +156,8 @@ public class PermissionManagementService
 
     public List<Permission> GetRolePermissions(int roleId)
     {
+        RequirePermission("Permissions.Manage");
+
         var role = _roleRepository.GetById(roleId);
 
         if (role == null)
@@ -123,6 +173,8 @@ public class PermissionManagementService
 
     public List<Permission> GetAllPermissions()
     {
+        RequirePermission("Permissions.Manage");
+
         return _permissionRepository.GetAll();
     }
 }

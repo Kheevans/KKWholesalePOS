@@ -1,4 +1,6 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
@@ -9,20 +11,17 @@ public class RoleManagementServiceTests
     [Fact]
     public void CreateRole_ShouldSaveRole()
     {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
         var userRepository = new FakeUserRepository();
 
-        var service = new RoleManagementService(
+        var service = CreateAuthorizedService(
             roleRepository,
             userRepository);
 
-        // Act
         var role = service.CreateRole(
             "Manager",
             "Manages daily business operations.");
 
-        // Assert
         Assert.Equal("Manager", role.Name);
         Assert.Equal(
             "Manages daily business operations.",
@@ -34,12 +33,10 @@ public class RoleManagementServiceTests
     [Fact]
     public void CreateRole_ShouldRejectEmptyName()
     {
-        // Arrange
-        var service = CreateService(
+        var service = CreateAuthorizedService(
             out _,
             out _);
 
-        // Act and Assert
         Assert.Throws<ArgumentException>(() =>
             service.CreateRole("", "Description"));
     }
@@ -47,7 +44,6 @@ public class RoleManagementServiceTests
     [Fact]
     public void CreateRole_ShouldRejectDuplicateName()
     {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
 
         roleRepository.Add(new Role
@@ -56,11 +52,10 @@ public class RoleManagementServiceTests
             Name = "Manager"
         });
 
-        var service = new RoleManagementService(
+        var service = CreateAuthorizedService(
             roleRepository,
             new FakeUserRepository());
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.CreateRole("Manager", "Another description."));
     }
@@ -68,11 +63,14 @@ public class RoleManagementServiceTests
     [Fact]
     public void AssignRoleToUser_ShouldAssignExistingRole()
     {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
         var userRepository = new FakeUserRepository();
 
-        userRepository.Add(new User { Id = 1, Username = "testuser" });
+        userRepository.Add(new User
+        {
+            Id = 1,
+            Username = "testuser"
+        });
 
         var role = new Role
         {
@@ -83,23 +81,20 @@ public class RoleManagementServiceTests
         roleRepository.Add(role);
         userRepository.AddRole(role);
 
-        var service = new RoleManagementService(
-                    roleRepository,
+        var service = CreateAuthorizedService(
+            roleRepository,
             userRepository);
 
-        // Act
         service.AssignRoleToUser(1, 1);
 
-        // Assert
         Assert.Contains(
             userRepository.GetUserRoles(1),
-            role => role.Id == 1);
+            assignedRole => assignedRole.Id == 1);
     }
 
     [Fact]
     public void AssignRoleToUser_ShouldRejectUnknownUser()
     {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
 
         roleRepository.Add(new Role
@@ -108,11 +103,10 @@ public class RoleManagementServiceTests
             Name = "Manager"
         });
 
-        var service = new RoleManagementService(
+        var service = CreateAuthorizedService(
             roleRepository,
             new FakeUserRepository());
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.AssignRoleToUser(99, 1));
     }
@@ -120,7 +114,6 @@ public class RoleManagementServiceTests
     [Fact]
     public void AssignRoleToUser_ShouldRejectUnknownRole()
     {
-        // Arrange
         var userRepository = new FakeUserRepository();
 
         userRepository.Add(new User
@@ -129,11 +122,10 @@ public class RoleManagementServiceTests
             Username = "testuser"
         });
 
-        var service = new RoleManagementService(
+        var service = CreateAuthorizedService(
             new FakeRoleRepository(),
             userRepository);
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.AssignRoleToUser(1, 99));
     }
@@ -141,42 +133,6 @@ public class RoleManagementServiceTests
     [Fact]
     public void RemoveRoleFromUser_ShouldRemoveAssignedRole()
     {
-        // Arrange
-        var roleRepository = new FakeRoleRepository();
-        var userRepository = new FakeUserRepository();
-
-        var user = new User
-        {
-            Id = 1,
-            Username = "testuser"
-        };
-
-        var role = new Role
-        {
-            Id = 1,
-            Name = "Manager"
-        };
-
-        userRepository.Add(user);
-        roleRepository.Add(role);
-        userRepository.AddRole(role);
-        userRepository.AssignRole(1, 1);
-
-        var service = new RoleManagementService(
-            roleRepository,
-            userRepository);
-
-        // Act
-        service.RemoveRoleFromUser(1, 1);
-
-        // Assert
-        Assert.Empty(userRepository.GetUserRoles(1));
-    }
-
-    [Fact]
-    public void GetUserRoles_ShouldReturnAssignedRoles()
-    {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
         var userRepository = new FakeUserRepository();
 
@@ -196,16 +152,54 @@ public class RoleManagementServiceTests
         userRepository.AddRole(role);
         userRepository.AssignRole(1, 1);
 
-        var service = new RoleManagementService(
+        var service = CreateAuthorizedService(
             roleRepository,
             userRepository);
 
-        // Act
+        service.RemoveRoleFromUser(1, 1);
+
+        Assert.Empty(userRepository.GetUserRoles(1));
+    }
+
+    [Fact]
+    public void GetUserRoles_ShouldReturnAssignedRoles()
+    {
+        var roleRepository = new FakeRoleRepository();
+        var userRepository = new FakeUserRepository();
+
+        userRepository.Add(new User
+        {
+            Id = 1,
+            Username = "testuser"
+        });
+
+        var role = new Role
+        {
+            Id = 1,
+            Name = "Manager"
+        };
+
+        roleRepository.Add(role);
+        userRepository.AddRole(role);
+        userRepository.AssignRole(1, 1);
+
+        var service = CreateAuthorizedService(
+            roleRepository,
+            userRepository);
+
         var roles = service.GetUserRoles(1);
 
-        // Assert
         Assert.Single(roles);
         Assert.Equal("Manager", roles[0].Name);
+    }
+
+    [Fact]
+    public void CreateRole_WithoutPermission_ShouldThrowUnauthorizedAccessException()
+    {
+        var service = CreateService(out _, out _);
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.CreateRole("Manager", "Description"));
     }
 
     private static RoleManagementService CreateService(
@@ -216,6 +210,62 @@ public class RoleManagementServiceTests
         userRepository = new FakeUserRepository();
 
         return new RoleManagementService(
+            roleRepository,
+            userRepository,
+            new UserSessionService(),
+            new AuthorizationService());
+    }
+
+    private static RoleManagementService CreateAuthorizedService(
+        FakeRoleRepository roleRepository,
+        FakeUserRepository userRepository)
+    {
+        var userSession = new UserSessionService();
+
+        var user = new User
+        {
+            Id = 1,
+            Username = "testuser",
+            IsActive = true,
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    Role = new Role
+                    {
+                        Name = "Administrator",
+                        RolePermissions = new List<RolePermission>
+                        {
+                            new RolePermission
+                            {
+                                Permission = new Permission
+                                {
+                                    Name = "Roles.Manage"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        userSession.StartSession(user);
+
+        return new RoleManagementService(
+            roleRepository,
+            userRepository,
+            userSession,
+            new AuthorizationService());
+    }
+
+    private static RoleManagementService CreateAuthorizedService(
+        out FakeRoleRepository roleRepository,
+        out FakeUserRepository userRepository)
+    {
+        roleRepository = new FakeRoleRepository();
+        userRepository = new FakeUserRepository();
+
+        return CreateAuthorizedService(
             roleRepository,
             userRepository);
     }
@@ -265,9 +315,7 @@ public class RoleManagementServiceTests
     private class FakeUserRepository : IUserRepository
     {
         private readonly List<User> _users = new();
-
         private readonly List<(int UserId, int RoleId)> _assignments = new();
-
         private readonly List<Role> _roles = new();
 
         public List<User> GetAll()

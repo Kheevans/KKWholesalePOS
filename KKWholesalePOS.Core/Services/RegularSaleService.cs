@@ -17,14 +17,36 @@ public class RegularSaleService
     };
 
     private readonly IRegularSaleRepository _repository;
+    private readonly UserSessionService _userSession;
+    private readonly AuthorizationService _authorizationService;
 
-    public RegularSaleService(IRegularSaleRepository repository)
+    public RegularSaleService(
+        IRegularSaleRepository repository,
+        UserSessionService userSession,
+        AuthorizationService authorizationService)
     {
         _repository = repository;
+        _userSession = userSession;
+        _authorizationService = authorizationService;
+    }
+
+    private void RequirePermission(string permissionName)
+    {
+        var currentUser = _userSession.CurrentUser;
+
+        if (currentUser == null ||
+            !_authorizationService.HasPermission(
+                currentUser, permissionName))
+        {
+            throw new UnauthorizedAccessException(
+                "You do not have permission to perform this action.");
+        }
     }
 
     public Product? FindProduct(string barcode)
     {
+        RequirePermission("Sales.Process");
+
         if (string.IsNullOrWhiteSpace(barcode))
         {
             throw new ArgumentException("Barcode is required.");
@@ -35,6 +57,8 @@ public class RegularSaleService
 
     public Product? FindProductById(int productId)
     {
+        RequirePermission("Sales.Process");
+
         if (productId <= 0)
         {
             throw new ArgumentException("A valid product is required.");
@@ -49,6 +73,8 @@ public class RegularSaleService
         int cashierId,
         string cashierName)
     {
+        RequirePermission("Sales.Process");
+
         ValidateSale(items, cashierId, cashierName);
 
         if (cashReceived <= 0m)
@@ -69,6 +95,8 @@ public class RegularSaleService
         int cashierId,
         string cashierName)
     {
+        RequirePermission("Sales.Process");
+
         ValidateSale(items, cashierId, cashierName);
 
         if (string.IsNullOrWhiteSpace(cardType) ||
@@ -125,12 +153,13 @@ public class RegularSaleService
         }
     }
 
-
     public void CheckQuantity(
         int productId,
         int quantity,
         int alreadyInCart = 0)
     {
+        RequirePermission("Sales.Process");
+
         if (quantity <= 0)
             throw new ArgumentException("Quantity must be greater than zero.");
 
@@ -150,6 +179,8 @@ public class RegularSaleService
 
     public decimal CalculateTotal(IReadOnlyList<SaleRequestLine> items)
     {
+        RequirePermission("Sales.Process");
+
         decimal total = 0m;
 
         foreach (var group in items.GroupBy(i => i.ProductId))
@@ -221,5 +252,4 @@ public class RegularSaleService
 
         return receipt.ToString();
     }
-
 }

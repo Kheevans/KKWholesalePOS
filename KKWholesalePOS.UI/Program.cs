@@ -28,24 +28,36 @@ namespace KKWholesalePOS.UI
 
             // Core services
             var passwordService = new PasswordService();
-            var reportingService = new ReportingService(reportingRepository);
-            var regularSaleService = new RegularSaleService(regularSaleRepository);
-            var dashboardService = new DashboardService(dashboardRepository);
-          
+            var authorizationService = new AuthorizationService();
+            var userSessionService = new UserSessionService();
+
             var permissionManagementService = new PermissionManagementService(
                 permissionRepository,
-                roleRepository);
+                roleRepository,
+                userSessionService,
+                authorizationService);
 
             var userManagementService = new UserManagementService(
                 userRepository,
-                passwordService);
+                passwordService,
+                userSessionService,
+                authorizationService);
 
             var roleManagementService = new RoleManagementService(
                 roleRepository,
-                userRepository);
+                userRepository,
+                userSessionService,
+                authorizationService);
 
             var auditLogService = new AuditLogService(
-                auditLogRepository);
+                auditLogRepository,
+                userSessionService,
+                authorizationService);
+
+            var reportingService = new ReportingService(
+                reportingRepository,
+                userSessionService,
+                authorizationService);
 
             var initialSetupService = new InitialSetupService(
                 userRepository,
@@ -53,6 +65,16 @@ namespace KKWholesalePOS.UI
                 roleManagementService,
                 permissionManagementService,
                 auditLogService);
+
+            var dashboardService = new DashboardService(
+                dashboardRepository,
+                userSessionService,
+                authorizationService);
+
+            var regularSaleService = new RegularSaleService(
+                regularSaleRepository,
+                userSessionService,
+                authorizationService);
 
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())
@@ -73,11 +95,9 @@ namespace KKWholesalePOS.UI
                 userRepository,
                 passwordService);
 
-            var userSession = new UserSessionService();
-
             var loginService = new LoginService(
                 authenticationService,
-                userSession,
+                userSessionService,
                 auditLogService);
 
             using var loginForm = new LoginForm(loginService);
@@ -85,7 +105,7 @@ namespace KKWholesalePOS.UI
             if (loginForm.ShowDialog() == DialogResult.OK)
             {
                 Application.Run(new MainForm(
-                    userSession,
+                    userSessionService,
                     loginService,
                     customerRepository,
                     reportingService,
@@ -94,7 +114,8 @@ namespace KKWholesalePOS.UI
                     userManagementService,
                     roleManagementService,
                     permissionManagementService,
-                    auditLogService));
+                    auditLogService,
+                    authorizationService));
             }
         }
     }

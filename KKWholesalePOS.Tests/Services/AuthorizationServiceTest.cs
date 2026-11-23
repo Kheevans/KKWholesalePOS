@@ -1,4 +1,6 @@
-﻿using KKWholesalePOS.Core.Interfaces;
+﻿
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Services;
 
@@ -9,20 +11,17 @@ public class PermissionManagementServiceTests
     [Fact]
     public void CreatePermission_ShouldSavePermission()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
         var roleRepository = new FakeRoleRepository();
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             roleRepository);
 
-        // Act
         var permission = service.CreatePermission(
             "Consignment.Process",
             "Allows processing of consignments.");
 
-        // Assert
         Assert.Equal("Consignment.Process", permission.Name);
         Assert.Contains(permission, permissionRepository.Permissions);
     }
@@ -31,17 +30,18 @@ public class PermissionManagementServiceTests
     public void CreatePermission_ShouldRejectEmptyName()
     {
         // Arrange
-        var service = CreateService(out _, out _);
+        var service = CreateAuthorizedService(
+            new FakePermissionRepository(),
+            new FakeRoleRepository());
 
         // Act and Assert
         Assert.Throws<ArgumentException>(() =>
-            service.CreatePermission("", "Description"));
+            service.CreatePermission("", "Test permission"));
     }
 
     [Fact]
     public void CreatePermission_ShouldRejectDuplicateName()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
 
         permissionRepository.Add(new Permission
@@ -50,11 +50,10 @@ public class PermissionManagementServiceTests
             Name = "Consignment.Process"
         });
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             new FakeRoleRepository());
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.CreatePermission(
                 "Consignment.Process",
@@ -64,7 +63,6 @@ public class PermissionManagementServiceTests
     [Fact]
     public void AssignPermissionToRole_ShouldAssignPermission()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
         var roleRepository = new FakeRoleRepository();
 
@@ -83,14 +81,12 @@ public class PermissionManagementServiceTests
         permissionRepository.Add(permission);
         roleRepository.Add(role);
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             roleRepository);
 
-        // Act
         service.AssignPermissionToRole(1, 1);
 
-        // Assert
         Assert.Contains(
             role.RolePermissions,
             rp => rp.PermissionId == 1);
@@ -99,7 +95,6 @@ public class PermissionManagementServiceTests
     [Fact]
     public void AssignPermissionToRole_ShouldNotCreateDuplicateAssignment()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
         var roleRepository = new FakeRoleRepository();
 
@@ -118,22 +113,19 @@ public class PermissionManagementServiceTests
         permissionRepository.Add(permission);
         roleRepository.Add(role);
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             roleRepository);
 
-        // Act
         service.AssignPermissionToRole(1, 1);
         service.AssignPermissionToRole(1, 1);
 
-        // Assert
         Assert.Single(role.RolePermissions);
     }
 
     [Fact]
     public void AssignPermissionToRole_ShouldRejectUnknownRole()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
 
         permissionRepository.Add(new Permission
@@ -142,11 +134,10 @@ public class PermissionManagementServiceTests
             Name = "Consignment.Process"
         });
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             new FakeRoleRepository());
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.AssignPermissionToRole(99, 1));
     }
@@ -154,7 +145,6 @@ public class PermissionManagementServiceTests
     [Fact]
     public void AssignPermissionToRole_ShouldRejectUnknownPermission()
     {
-        // Arrange
         var roleRepository = new FakeRoleRepository();
 
         roleRepository.Add(new Role
@@ -163,11 +153,10 @@ public class PermissionManagementServiceTests
             Name = "Consignment Officer"
         });
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             new FakePermissionRepository(),
             roleRepository);
 
-        // Act and Assert
         Assert.Throws<InvalidOperationException>(() =>
             service.AssignPermissionToRole(1, 99));
     }
@@ -175,7 +164,6 @@ public class PermissionManagementServiceTests
     [Fact]
     public void RemovePermissionFromRole_ShouldRemoveAssignment()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
         var roleRepository = new FakeRoleRepository();
 
@@ -194,23 +182,20 @@ public class PermissionManagementServiceTests
         permissionRepository.Add(permission);
         roleRepository.Add(role);
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             roleRepository);
 
         service.AssignPermissionToRole(1, 1);
 
-        // Act
         service.RemovePermissionFromRole(1, 1);
 
-        // Assert
         Assert.Empty(role.RolePermissions);
     }
 
     [Fact]
     public void GetRolePermissions_ShouldReturnAssignedPermissions()
     {
-        // Arrange
         var permissionRepository = new FakePermissionRepository();
         var roleRepository = new FakeRoleRepository();
 
@@ -229,18 +214,27 @@ public class PermissionManagementServiceTests
         permissionRepository.Add(permission);
         roleRepository.Add(role);
 
-        var service = new PermissionManagementService(
+        var service = CreateAuthorizedService(
             permissionRepository,
             roleRepository);
 
         service.AssignPermissionToRole(1, 1);
 
-        // Act
         var permissions = service.GetRolePermissions(1);
 
-        // Assert
         Assert.Single(permissions);
         Assert.Equal("Consignment.Process", permissions[0].Name);
+    }
+
+    [Fact]
+    public void CreatePermission_WithoutPermission_ShouldThrowUnauthorizedAccessException()
+    {
+        var service = CreateService(out _, out _);
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.CreatePermission(
+                "Consignment.Process",
+                "Allows processing of consignments."));
     }
 
     private static PermissionManagementService CreateService(
@@ -250,9 +244,55 @@ public class PermissionManagementServiceTests
         permissionRepository = new FakePermissionRepository();
         roleRepository = new FakeRoleRepository();
 
+        var userSession = new UserSessionService();
+
         return new PermissionManagementService(
             permissionRepository,
-            roleRepository);
+            roleRepository,
+            userSession,
+            new AuthorizationService());
+    }
+
+    private static PermissionManagementService CreateAuthorizedService(
+        FakePermissionRepository permissionRepository,
+        FakeRoleRepository roleRepository)
+    {
+        var userSession = new UserSessionService();
+
+        var user = new User
+        {
+            Id = 1,
+            Username = "testuser",
+            IsActive = true,
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    Role = new Role
+                    {
+                        Name = "Administrator",
+                        RolePermissions = new List<RolePermission>
+                        {
+                            new RolePermission
+                            {
+                                Permission = new Permission
+                                {
+                                    Name = "Permissions.Manage"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        userSession.StartSession(user);
+
+        return new PermissionManagementService(
+            permissionRepository,
+            roleRepository,
+            userSession,
+            new AuthorizationService());
     }
 
     private class FakePermissionRepository : IPermissionRepository

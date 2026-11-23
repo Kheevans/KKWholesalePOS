@@ -52,8 +52,7 @@ public class AppDbContext : DbContext
             Directory.CreateDirectory(folder);
 
             string dbPath = Path.Combine(
-                folder, "kkwholesale.db");
-
+                folder, "kkwholesale_test.db");
             optionsBuilder.UseSqlite(
                 $"Data Source={dbPath}");
         }
