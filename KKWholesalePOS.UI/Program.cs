@@ -1,5 +1,6 @@
 using KKWholesalePOS.Core.Services;
 using KKWholesalePOS.Data;
+using KKWholesalePOS.Data.Services;
 using KKWholesalePOS.Data.Repositories;
 using QuestPDF.Infrastructure;
 
@@ -26,6 +27,9 @@ namespace KKWholesalePOS.UI
             var dashboardRepository = new DashboardRepository(dbContext);
             var permissionRepository = new PermissionRepository(dbContext);
             var businessSettingsRepository = new BusinessSettingsRepository(dbContext);
+            var inventoryService = new InventoryService(dbContext);
+            var creditRepository = new CreditRepository(dbContext, inventoryService);
+
 
             // Core services
             var passwordService = new PasswordService();
@@ -82,6 +86,10 @@ namespace KKWholesalePOS.UI
                 userSessionService,
                 authorizationService);
 
+            var creditService = new CreditService(
+                creditRepository,
+                auditLogRepository);
+
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())
             {
@@ -122,7 +130,8 @@ namespace KKWholesalePOS.UI
                     permissionManagementService,
                     auditLogService,
                     authorizationService,
-                    businessSettingsService));
+                    businessSettingsService,
+                    creditService));
             }
         }
     }

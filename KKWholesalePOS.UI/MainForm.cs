@@ -33,6 +33,13 @@ namespace KKWholesalePOS.UI
         private readonly AuditLogService _auditLogService;
         private readonly AuthorizationService _authorizationService;
         private readonly BusinessSettingsService _businessSettingsService;
+        private readonly CreditService _creditService;
+        // Credit Management controls
+        private Button _btnCreditManagement = null!;
+        private Panel _pnlCreditManagement = null!;
+        private TextBox _txtCreditCustomerSearch = null!;
+        private DataGridView _creditAccountsGrid = null!;
+
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
@@ -57,6 +64,7 @@ namespace KKWholesalePOS.UI
         private Button _createRoleButton = null!;
         private Button _assignPermissionButton = null!;
         private Button _removePermissionButton = null!;
+    
         // Business information
         private TextBox txtBusinessName = null!;
         private TextBox txtBusinessAddress = null!;
@@ -94,7 +102,8 @@ namespace KKWholesalePOS.UI
             PermissionManagementService permissionManagementService,
             AuditLogService auditLogService,
             AuthorizationService authorizationService,
-            BusinessSettingsService businessSettingsService)
+            BusinessSettingsService businessSettingsService,
+            CreditService creditService)
         {
             InitializeComponent();
 
@@ -102,7 +111,9 @@ namespace KKWholesalePOS.UI
 
             ConfigureDashboardLayout();
             ConfigureUserManagementLayout();
+            ConfigureCreditManagementLayout();
             ConfigureSettingsLayout();
+            
 
             btnExportPdf.Click += btnExportPdf_Click;
             btnExportExcel.Click += btnExportExcel_Click;
@@ -127,6 +138,7 @@ namespace KKWholesalePOS.UI
             _auditLogService = auditLogService;
             _authorizationService = authorizationService;
             _businessSettingsService = businessSettingsService;
+            _creditService = creditService;
 
             if (HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage"))
@@ -165,6 +177,7 @@ namespace KKWholesalePOS.UI
             btnDashboard.Click += btnDashboard_Click;
             btnReports.Click += btnReports_Click;
             btnUserManagement.Click += btnUserManagement_Click;
+            _btnCreditManagement.Click += btnCreditManagement_Click;
             btnSettings.Click += btnSettings_Click;
 
             UpdateSessionDisplay();
@@ -647,6 +660,26 @@ namespace KKWholesalePOS.UI
             tsslDateTime.Text =
                 DateTime.Now.ToString("dd MMM yyyy");
         }
+        
+        private void ConfigureCreditManagementLayout()
+        {
+            _btnCreditManagement = new Button
+            {
+                Text = "Credit Management",
+                Name = "btnCreditManagement",
+                Size = new System.Drawing.Size(190, 42),
+                Margin = new Padding(0, 5, 0, 5),
+                BackColor = _normalButtonColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Cursor = Cursors.Hand,
+                Visible = false
+            };
+            _btnCreditManagement.FlatAppearance.BorderSize = 0;
+            flpNavigation.Controls.Add(_btnCreditManagement);
+            flpNavigation.Controls.SetChildIndex(_btnCreditManagement, 2);
+        }
 
         private void ApplyNavigationPermissions()
         {
@@ -660,6 +693,9 @@ namespace KKWholesalePOS.UI
                 HasPermission("AuditLog.View");
 
             btnSettings.Enabled = HasPermission("Settings.Manage");
+
+            _btnCreditManagement.Visible = HasPermission("Credit.Manage");
+            _btnCreditManagement.Enabled = HasPermission("Credit.Manage");
 
             ApplyManagementTabPermissions();
             ApplyManagementActionPermissions();
@@ -706,6 +742,7 @@ namespace KKWholesalePOS.UI
             pnlReports.Visible = false;
             pnlUserManagement.Visible = false;
             pnlSettings.Visible = false;
+            _pnlCreditManagement.Visible = false;
 
             // Display selected page
             selectedPanel.Visible = true;
@@ -719,6 +756,7 @@ namespace KKWholesalePOS.UI
                 "Dashboard" => "Welcome to K&K Wholesale POS",
                 "Reports" => "View and generate business reports.",
                 "User Management" => "Manage system users, roles and permissions.",
+                "Credit Management" => "Manage customer credit accounts and payments.",
                 "Settings" => "Configure your business and system preferences.",
                 _ => string.Empty
             };
@@ -727,6 +765,7 @@ namespace KKWholesalePOS.UI
             btnDashboard.BackColor = _normalButtonColor;
             btnReports.BackColor = _normalButtonColor;
             btnUserManagement.BackColor = _normalButtonColor;
+            _btnCreditManagement.BackColor = _normalButtonColor;
             btnSettings.BackColor = _normalButtonColor;
 
             // Highlight selected navigation button
@@ -752,6 +791,10 @@ namespace KKWholesalePOS.UI
             {
                 ShowPage(pnlSettings, "Settings", btnSettings);
             }
+            else if (CanAccessPage("Credit Management"))
+            {
+                 ShowPage(_pnlCreditManagement, "Credit Management", _btnCreditManagement);
+            }   
             else
             {
                 MessageBox.Show(
@@ -927,7 +970,11 @@ namespace KKWholesalePOS.UI
                 "User Management",
                 btnUserManagement);
         }
-
+        private void btnCreditManagement_Click(object? sender, EventArgs e)
+        {
+            ShowPage( _pnlCreditManagement, "Credit Management", _btnCreditManagement );
+        }
+      
         private void btnSettings_Click(object sender, EventArgs e)
         {
             if (!RequirePermission("Settings.Manage"))
@@ -2996,6 +3043,7 @@ namespace KKWholesalePOS.UI
                     HasPermission("Roles.Manage") ||
                     HasPermission("Permissions.Manage") ||
                     HasPermission("AuditLog.View"),
+                "Credit Management" => HasPermission("Credit.Manage"),
                 "Settings" => HasPermission("Settings.Manage"),
                 _ => false
             };

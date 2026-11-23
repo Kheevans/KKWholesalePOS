@@ -1,6 +1,9 @@
 //for customer's credit purchase and invoice
 
 using System.Data;
+using KKWholesalePOS.Core.Models.Credit;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Models;
 
@@ -31,7 +34,7 @@ public class CreditTransaction
     public DateTime TransactionDate {get; set; } = DateTime.UtcNow;
 
 //Due date for customer's credit; date customer must pay the invoice
-    public DataSetDateTime DueDate {get; set;}
+    public DateTime DueDate {get; set;}
 
     public ICollection<CreditPayment> Payments{get; set;}
     = new List<CreditPayment>();

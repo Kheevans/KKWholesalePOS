@@ -1,5 +1,7 @@
 
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Credit;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Interfaces;
 
@@ -33,4 +35,6 @@ public interface ICreditRepository
 
     // Save database changes.
     void SaveChanges();
+
+    void CreateCreditSaleWithStock(CreditSale creditSale, int userId);
 }

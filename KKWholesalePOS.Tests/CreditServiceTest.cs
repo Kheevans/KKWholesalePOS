@@ -1,6 +1,9 @@
 
 using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Credit;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Others;
+using KKWholesalePOS.Core.Models.Sales;
 using KKWholesalePOS.Core.Services;
 using Moq;
 

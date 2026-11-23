@@ -1,6 +1,10 @@
 
 using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Credit;
+using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Others;
+using KKWholesalePOS.Core.Models.Sales;
+
 
 namespace KKWholesalePOS.Core.Services;
 
@@ -99,8 +103,7 @@ public class CreditService
             Lines = lines
         };
 
-        _repository.AddCreditSale(sale);
-        _repository.SaveChanges();
+        _repository.CreateCreditSaleWithStock(sale, userId);
 
         return sale;
     }

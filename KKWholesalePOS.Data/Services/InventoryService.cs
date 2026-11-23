@@ -13,6 +13,8 @@ public class InventoryService
     public const string RegularSale = "RegularSale";
     public const string ConsignmentIssued = "ConsignmentIssued";
     public const string ConsignmentReturn = "ConsignmentReturn";
+    //newly add; core depends directly on data
+    public const string CreditSale = "CreditSale";
 
     public InventoryService(AppDbContext context)
     {
@@ -154,6 +156,11 @@ public class InventoryService
                 quantityChange > 0 &&
                 consignmentReturnId.HasValue &&
                 sourceCount == 1,
+            
+            //newly added
+            CreditSale => 
+                quantityChange >0 &&
+                sourceCount == 0,
 
             _ => false
         };
