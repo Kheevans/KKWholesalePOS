@@ -17,40 +17,177 @@ namespace KKWholesalePOS.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.14");
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.AuditLogEntry", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.Consignment", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Action")
+                    b.Property<decimal>("ConsignmentFee")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OriginalGoodsValue")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceNumber")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Details")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EntityId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EntityType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("UserId")
+                    b.Property<int>("UserId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
                     b.HasIndex("UserId");
 
-                    b.ToTable("AuditLogEntries");
+                    b.ToTable("Consignments");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditPayment", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Barcode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ConsignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentId");
+
+                    b.HasIndex("ProductId");
+
+                    b.ToTable("ConsignmentLines");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ConsignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("PaymentDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReferenceNumber")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ConsignmentPayments");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturn", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ConsignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReferenceNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReturnDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentId");
+
+                    b.HasIndex("ReferenceNumber")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ConsignmentReturns");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturnLine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ConsignmentLineId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ConsignmentReturnId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QuantityAccepted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QuantityReturned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentLineId");
+
+                    b.HasIndex("ConsignmentReturnId");
+
+                    b.ToTable("ConsignmentReturnLines");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditPayment", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -84,7 +221,7 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("CreditPayments");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditSale", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -95,6 +232,9 @@ namespace KKWholesalePOS.Data.Migrations
 
                     b.Property<int>("CustomerId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("TEXT");
@@ -121,7 +261,7 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("CreditSales");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSaleLine", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditSaleLine", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -159,7 +299,120 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("CreditSaleLines");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Customer", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Inventory.Product", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Barcode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MinimumStockLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("SellingPrice")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("StockQuantity")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UnitsPerCase")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Products");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Inventory.StockMovement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ConsignmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ConsignmentReturnId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ProductId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("QuantityChange")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RegularSaleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsignmentId");
+
+                    b.HasIndex("ConsignmentReturnId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("RegularSaleId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("StockMovements");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.AuditLogEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AuditLogEntries");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.Customer", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -186,7 +439,7 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("Customers");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Permission", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.Permission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -208,13 +461,13 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("Permissions");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Product", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.Role", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Barcode")
+                    b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -222,21 +475,73 @@ namespace KKWholesalePOS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("SellingPrice")
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Roles");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.RolePermission", b =>
+                {
+                    b.Property<int>("RoleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PermissionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("RoleId", "PermissionId");
+
+                    b.HasIndex("PermissionId");
+
+                    b.ToTable("RolePermissions");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("StockQuantity")
+                    b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("UnitsPerCase")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Products");
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RegularSale", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.UserRole", b =>
+                {
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RoleId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("UserRoles");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Sales.RegularSale", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -279,7 +584,7 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("RegularSales");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RegularSaleLine", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Sales.RegularSaleLine", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -317,125 +622,208 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("RegularSaleLines");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Role", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Settings.BusinessSettings", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Description")
+                    b.Property<string>("BusinessAddress")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Name")
+                    b.Property<string>("BusinessName")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.HasKey("Id");
-
-                    b.HasIndex("Name")
-                        .IsUnique();
-
-                    b.ToTable("Roles");
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RolePermission", b =>
-                {
-                    b.Property<int>("RoleId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("PermissionId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("RoleId", "PermissionId");
-
-                    b.HasIndex("PermissionId");
-
-                    b.ToTable("RolePermissions");
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.StockMovement", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("MovementType")
+                    b.Property<string>("CurrencyCode")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("QuantityChange")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("RecordedAt")
+                    b.Property<string>("DateFormat")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("RegularSaleId")
+                    b.Property<int>("DefaultMinimumStockLevel")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("UserId")
+                    b.Property<string>("EmailAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptFooter")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptHeader")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ShowBusinessContactDetails")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("RegularSaleId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("StockMovements");
+                    b.ToTable("BusinessSettings");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.User", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.Consignment", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Username")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Username")
-                        .IsUnique();
-
-                    b.ToTable("Users");
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.UserRole", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentLine", b =>
                 {
-                    b.Property<int>("UserId")
-                        .HasColumnType("INTEGER");
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.Consignment", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ConsignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("UserId", "RoleId");
-
-                    b.HasIndex("RoleId");
-
-                    b.ToTable("UserRoles");
+                    b.HasOne("KKWholesalePOS.Core.Models.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.AuditLogEntry", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentPayment", b =>
                 {
-                    b.HasOne("KKWholesalePOS.Core.Models.User", "User")
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.Consignment", null)
+                        .WithMany()
+                        .HasForeignKey("ConsignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturn", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.Consignment", null)
+                        .WithMany()
+                        .HasForeignKey("ConsignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturnLine", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.ConsignmentLine", null)
+                        .WithMany()
+                        .HasForeignKey("ConsignmentLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturn", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("ConsignmentReturnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditPayment", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Credit.CreditSale", null)
+                        .WithMany()
+                        .HasForeignKey("CreditSaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditSale", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditSaleLine", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Credit.CreditSale", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("CreditSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Inventory.StockMovement", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.Consignment", null)
+                        .WithMany()
+                        .HasForeignKey("ConsignmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturn", null)
+                        .WithMany()
+                        .HasForeignKey("ConsignmentReturnId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Sales.RegularSale", null)
+                        .WithMany()
+                        .HasForeignKey("RegularSaleId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.AuditLogEntry", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
@@ -443,75 +831,15 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditPayment", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.RolePermission", b =>
                 {
-                    b.HasOne("KKWholesalePOS.Core.Models.CreditSale", null)
-                        .WithMany()
-                        .HasForeignKey("CreditSaleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KKWholesalePOS.Core.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
-                {
-                    b.HasOne("KKWholesalePOS.Core.Models.Customer", null)
-                        .WithMany()
-                        .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KKWholesalePOS.Core.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSaleLine", b =>
-                {
-                    b.HasOne("KKWholesalePOS.Core.Models.CreditSale", null)
-                        .WithMany("Lines")
-                        .HasForeignKey("CreditSaleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("KKWholesalePOS.Core.Models.Product", null)
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RegularSaleLine", b =>
-                {
-                    b.HasOne("KKWholesalePOS.Core.Models.Product", null)
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KKWholesalePOS.Core.Models.RegularSale", null)
-                        .WithMany("Lines")
-                        .HasForeignKey("RegularSaleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RolePermission", b =>
-                {
-                    b.HasOne("KKWholesalePOS.Core.Models.Permission", "Permission")
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.Permission", "Permission")
                         .WithMany("RolePermissions")
                         .HasForeignKey("PermissionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("KKWholesalePOS.Core.Models.Role", "Role")
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.Role", "Role")
                         .WithMany("RolePermissions")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -522,35 +850,15 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Navigation("Role");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.StockMovement", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.UserRole", b =>
                 {
-                    b.HasOne("KKWholesalePOS.Core.Models.Product", null)
-                        .WithMany()
-                        .HasForeignKey("ProductId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("KKWholesalePOS.Core.Models.RegularSale", null)
-                        .WithMany()
-                        .HasForeignKey("RegularSaleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("KKWholesalePOS.Core.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.UserRole", b =>
-                {
-                    b.HasOne("KKWholesalePOS.Core.Models.Role", "Role")
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.Role", "Role")
                         .WithMany("UserRoles")
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("KKWholesalePOS.Core.Models.User", "User")
+                    b.HasOne("KKWholesalePOS.Core.Models.Others.User", "User")
                         .WithMany("UserRoles")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -561,31 +869,56 @@ namespace KKWholesalePOS.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.CreditSale", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Sales.RegularSaleLine", b =>
+                {
+                    b.HasOne("KKWholesalePOS.Core.Models.Inventory.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("KKWholesalePOS.Core.Models.Sales.RegularSale", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("RegularSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.Consignment", b =>
                 {
                     b.Navigation("Lines");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Permission", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.ConsignmentReturn", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Credit.CreditSale", b =>
+                {
+                    b.Navigation("Lines");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.Permission", b =>
                 {
                     b.Navigation("RolePermissions");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.RegularSale", b =>
-                {
-                    b.Navigation("Lines");
-                });
-
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.Role", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.Role", b =>
                 {
                     b.Navigation("RolePermissions");
 
                     b.Navigation("UserRoles");
                 });
 
-            modelBuilder.Entity("KKWholesalePOS.Core.Models.User", b =>
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Others.User", b =>
                 {
                     b.Navigation("UserRoles");
+                });
+
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Sales.RegularSale", b =>
+                {
+                    b.Navigation("Lines");
                 });
 #pragma warning restore 612, 618
         }

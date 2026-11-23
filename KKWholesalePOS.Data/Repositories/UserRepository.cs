@@ -1,5 +1,6 @@
 ﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
+using KKWholesalePOS.Core.Models.Others;
 using Microsoft.EntityFrameworkCore;
 
 namespace KKWholesalePOS.Data.Repositories;
@@ -92,6 +93,15 @@ public class UserRepository : IUserRepository
         return _dbContext.UserRoles
             .Where(ur => ur.UserId == userId)
             .Select(ur => ur.Role)
+            .ToList();
+    }
+
+    public List<User> GetAll()
+    {
+        return _dbContext.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+            .OrderBy(u => u.Username)
             .ToList();
     }
 }

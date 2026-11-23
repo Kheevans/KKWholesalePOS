@@ -1,5 +1,10 @@
-﻿using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Sales;
+using KKWholesalePOS.Core.Models.Credit;
+using KKWholesalePOS.Core.Models.Others;
+using KKWholesalePOS.Core.Models.Consignment;
 using Microsoft.EntityFrameworkCore;
+using KKWholesalePOS.Core.Models.Settings;
 
 namespace KKWholesalePOS.Data;
 
@@ -14,7 +19,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Product> Products => Set<Product>();
-
+    public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -28,6 +33,11 @@ public class AppDbContext : DbContext
     public DbSet<CreditSale> CreditSales => Set<CreditSale>();
     public DbSet<CreditSaleLine> CreditSaleLines => Set<CreditSaleLine>();
     public DbSet<CreditPayment> CreditPayments => Set<CreditPayment>();
+    public DbSet<Consignment> Consignments => Set<Consignment>();
+    public DbSet<ConsignmentLine> ConsignmentLines => Set<ConsignmentLine>();
+    public DbSet<ConsignmentReturn> ConsignmentReturns => Set<ConsignmentReturn>();
+    public DbSet<ConsignmentReturnLine> ConsignmentReturnLines => Set<ConsignmentReturnLine>();
+    public DbSet<ConsignmentPayment> ConsignmentPayments => Set<ConsignmentPayment>();
 
 
     protected override void OnConfiguring(
@@ -44,7 +54,6 @@ public class AppDbContext : DbContext
 
             string dbPath = Path.Combine(
                 folder, "kkwholesale.db");
-
             optionsBuilder.UseSqlite(
                 $"Data Source={dbPath}");
         }
@@ -176,6 +185,109 @@ public class AppDbContext : DbContext
         // TotalAmount is calculated from PurchaseAmount + CreditFee.
         modelBuilder.Entity<CreditSale>()
             .Ignore(s => s.TotalAmount);
+
+
+        // Consignment relationships
+
+        modelBuilder.Entity<Consignment>()
+            .HasOne<Customer>()
+            .WithMany()
+            .HasForeignKey(c => c.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Consignment>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(c => c.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Consignment>()
+            .HasMany(c => c.Lines)
+            .WithOne()
+            .HasForeignKey(l => l.ConsignmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ConsignmentLine>()
+            .HasOne<Product>()
+            .WithMany()
+            .HasForeignKey(l => l.ProductId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Consignment return relationships
+
+        modelBuilder.Entity<ConsignmentReturn>()
+            .HasOne<Consignment>()
+            .WithMany()
+            .HasForeignKey(r => r.ConsignmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ConsignmentReturn>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ConsignmentReturn>()
+            .HasMany(r => r.Lines)
+            .WithOne()
+            .HasForeignKey(l => l.ConsignmentReturnId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ConsignmentReturnLine>()
+            .HasOne<ConsignmentLine>()
+            .WithMany()
+            .HasForeignKey(l => l.ConsignmentLineId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Consignment payment relationships
+
+        modelBuilder.Entity<ConsignmentPayment>()
+            .HasOne<Consignment>()
+            .WithMany()
+            .HasForeignKey(p => p.ConsignmentId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ConsignmentPayment>()
+            .HasOne<User>()
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Stock movement - consignment references
+
+        modelBuilder.Entity<StockMovement>()
+            .HasOne<Consignment>()
+            .WithMany()
+            .HasForeignKey(m => m.ConsignmentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<StockMovement>()
+            .HasOne<ConsignmentReturn>()
+            .WithMany()
+            .HasForeignKey(m => m.ConsignmentReturnId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Unique consignment references
+
+        modelBuilder.Entity<Consignment>()
+            .HasIndex(c => c.ReferenceNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<ConsignmentReturn>()
+            .HasIndex(r => r.ReferenceNumber)
+            .IsUnique();
+
+        // Ignore calculated properties
+
+        modelBuilder.Entity<Consignment>()
+            .Ignore(c => c.TotalAmount);
+
+        modelBuilder.Entity<ConsignmentReturnLine>()
+            .Ignore(l => l.AcceptedValue);
+
+        modelBuilder.Entity<ConsignmentReturnLine>()
+            .Ignore(l => l.QuantityRejected);
+
 
 
     }

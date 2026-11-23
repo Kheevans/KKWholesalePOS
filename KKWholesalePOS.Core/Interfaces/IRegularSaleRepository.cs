@@ -1,5 +1,5 @@
-﻿
-using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Inventory;
+using KKWholesalePOS.Core.Models.Sales;
 
 namespace KKWholesalePOS.Core.Interfaces;
 

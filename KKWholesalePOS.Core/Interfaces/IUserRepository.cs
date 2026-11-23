@@ -1,4 +1,4 @@
-﻿using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Interfaces;
 
@@ -21,4 +21,6 @@ public interface IUserRepository
     void RemoveRole(int userId, int roleId);
 
     List<Role> GetUserRoles(int userId);
+
+    List<User> GetAll();
 }

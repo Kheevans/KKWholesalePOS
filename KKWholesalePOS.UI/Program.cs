@@ -23,28 +23,64 @@ namespace KKWholesalePOS.UI
             var customerRepository = new CustomerRepository(dbContext);
             var reportingRepository = new ReportingRepository(dbContext);
             var regularSaleRepository = new RegularSaleRepository(dbContext);
+            var dashboardRepository = new DashboardRepository(dbContext);
+            var permissionRepository = new PermissionRepository(dbContext);
+            var businessSettingsRepository = new BusinessSettingsRepository(dbContext);
 
             // Core services
             var passwordService = new PasswordService();
-            var reportingService = new ReportingService(reportingRepository);
-            var regularSaleService = new RegularSaleService(regularSaleRepository);
-            
+            var authorizationService = new AuthorizationService();
+            var userSessionService = new UserSessionService();
+
+            var businessSettingsService = new BusinessSettingsService(
+                businessSettingsRepository,
+                userSessionService,
+                authorizationService);
+
+            var permissionManagementService = new PermissionManagementService(
+                permissionRepository,
+                roleRepository,
+                userSessionService,
+                authorizationService);
+
             var userManagementService = new UserManagementService(
                 userRepository,
-                passwordService);
+                passwordService,
+                userSessionService,
+                authorizationService);
 
             var roleManagementService = new RoleManagementService(
                 roleRepository,
-                userRepository);
+                userRepository,
+                userSessionService,
+                authorizationService);
 
             var auditLogService = new AuditLogService(
-                auditLogRepository);
+                auditLogRepository,
+                userSessionService,
+                authorizationService);
+
+            var reportingService = new ReportingService(
+                reportingRepository,
+                userSessionService,
+                authorizationService);
 
             var initialSetupService = new InitialSetupService(
                 userRepository,
                 userManagementService,
                 roleManagementService,
+                permissionManagementService,
                 auditLogService);
+
+            var dashboardService = new DashboardService(
+                dashboardRepository,
+                userSessionService,
+                authorizationService);
+
+            var regularSaleService = new RegularSaleService(
+                regularSaleRepository,
+                userSessionService,
+                authorizationService);
 
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())
@@ -57,16 +93,17 @@ namespace KKWholesalePOS.UI
                 }
             }
 
+            // Seed default permissions for both new and existing installations.
+            initialSetupService.EnsureDefaultPermissions();
+
             // Authentication
             var authenticationService = new AuthenticationService(
                 userRepository,
                 passwordService);
 
-            var userSession = new UserSessionService();
-
             var loginService = new LoginService(
                 authenticationService,
-                userSession,
+                userSessionService,
                 auditLogService);
 
             using var loginForm = new LoginForm(loginService);
@@ -74,11 +111,18 @@ namespace KKWholesalePOS.UI
             if (loginForm.ShowDialog() == DialogResult.OK)
             {
                 Application.Run(new MainForm(
-                    userSession,
+                    userSessionService,
                     loginService,
                     customerRepository,
                     reportingService,
-                    regularSaleService));
+                    regularSaleService,
+                    dashboardService,
+                    userManagementService,
+                    roleManagementService,
+                    permissionManagementService,
+                    auditLogService,
+                    authorizationService,
+                    businessSettingsService));
             }
         }
     }

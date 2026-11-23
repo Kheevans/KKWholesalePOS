@@ -12,6 +12,10 @@ public class CreditStatementRow
 
     public decimal CreditFee { get; set; }
 
+    public DateTime DueDate { get; set; }
+    public bool IsOverdue => OutstandingBalance > 0 &&
+                             DateTime.Now.Date > DueDate.Date;
+
     public decimal Payments { get; set; }
 
     public decimal OutstandingBalance =>
