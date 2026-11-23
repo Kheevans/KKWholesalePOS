@@ -4,7 +4,7 @@ using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Models.Consignment;
 using Microsoft.EntityFrameworkCore;
-
+using KKWholesalePOS.Core.Models.Settings;
 
 namespace KKWholesalePOS.Data;
 
@@ -19,7 +19,7 @@ public class AppDbContext : DbContext
     }
 
     public DbSet<Product> Products => Set<Product>();
-
+    public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -52,7 +52,7 @@ public class AppDbContext : DbContext
             Directory.CreateDirectory(folder);
 
             string dbPath = Path.Combine(
-                folder, "kkwholesale_test.db");
+                folder, "kkwholesale.db");
             optionsBuilder.UseSqlite(
                 $"Data Source={dbPath}");
         }

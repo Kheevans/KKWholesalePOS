@@ -12,6 +12,8 @@ using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Drawing;
 using KKWholesalePOS.Core.Models.Others;
+using Color = System.Drawing.Color;
+using Font = System.Drawing.Font;
 
 namespace KKWholesalePOS.UI
 {
@@ -30,6 +32,7 @@ namespace KKWholesalePOS.UI
         private readonly PermissionManagementService _permissionManagementService;
         private readonly AuditLogService _auditLogService;
         private readonly AuthorizationService _authorizationService;
+        private readonly BusinessSettingsService _businessSettingsService;
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
@@ -54,6 +57,25 @@ namespace KKWholesalePOS.UI
         private Button _createRoleButton = null!;
         private Button _assignPermissionButton = null!;
         private Button _removePermissionButton = null!;
+        // Business information
+        private TextBox txtBusinessName = null!;
+        private TextBox txtBusinessAddress = null!;
+        private TextBox txtPhoneNumber = null!;
+        private TextBox txtEmailAddress = null!;
+
+        // Receipt settings
+        private TextBox txtReceiptHeader = null!;
+        private TextBox txtReceiptFooter = null!;
+        private System.Windows.Forms.CheckBox chkShowBusinessContactDetails = null!;
+        // System preferences
+        private ComboBox cmbCurrencyCode = null!;
+        private ComboBox cmbDateFormat = null!;
+
+        // Inventory preferences
+        private NumericUpDown nudDefaultMinimumStockLevel = null!;
+
+        // Settings action
+        private Button btnSaveSettings = null!;
         private readonly System.Drawing.Color _selectedButtonColor =
             System.Drawing.Color.FromArgb(59, 130, 246);
         private readonly PrintDocument _reportPrintDocument = new();
@@ -71,7 +93,8 @@ namespace KKWholesalePOS.UI
             RoleManagementService roleManagementService,
             PermissionManagementService permissionManagementService,
             AuditLogService auditLogService,
-            AuthorizationService authorizationService)
+            AuthorizationService authorizationService,
+            BusinessSettingsService businessSettingsService)
         {
             InitializeComponent();
 
@@ -79,6 +102,7 @@ namespace KKWholesalePOS.UI
 
             ConfigureDashboardLayout();
             ConfigureUserManagementLayout();
+            ConfigureSettingsLayout();
 
             btnExportPdf.Click += btnExportPdf_Click;
             btnExportExcel.Click += btnExportExcel_Click;
@@ -102,6 +126,7 @@ namespace KKWholesalePOS.UI
             _permissionManagementService = permissionManagementService;
             _auditLogService = auditLogService;
             _authorizationService = authorizationService;
+            _businessSettingsService = businessSettingsService;
 
             if (HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage"))
@@ -257,6 +282,198 @@ namespace KKWholesalePOS.UI
 
             tlpDashboardCards.ResumeLayout();
         }
+
+        private void ConfigureSettingsLayout()
+        {
+            pnlSettings.Controls.Clear();
+
+            pnlSettings.AutoScroll = true;
+            pnlSettings.BackColor = System.Drawing.Color.FromArgb(248, 250, 252);
+            pnlSettings.Padding = new Padding(20);
+
+            var mainLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 1,
+                RowCount = 5,
+                Padding = new Padding(10),
+                BackColor = System.Drawing.Color.Transparent
+            };
+
+            mainLayout.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+
+            // Business Information
+            var businessGroup = CreateSettingsGroup(
+                "Business Information");
+
+            txtBusinessName = CreateSettingsTextBox();
+            txtBusinessAddress = CreateSettingsTextBox();
+            txtPhoneNumber = CreateSettingsTextBox();
+            txtEmailAddress = CreateSettingsTextBox();
+
+            AddSettingsField(businessGroup, "Business Name", txtBusinessName);
+            AddSettingsField(businessGroup, "Address", txtBusinessAddress);
+            AddSettingsField(businessGroup, "Telephone", txtPhoneNumber);
+            AddSettingsField(businessGroup, "Email Address", txtEmailAddress);
+
+            // Receipt Settings
+            var receiptGroup = CreateSettingsGroup("Receipt Settings");
+
+            txtReceiptHeader = CreateSettingsTextBox();
+            txtReceiptFooter = CreateSettingsTextBox();
+
+            chkShowBusinessContactDetails = new System.Windows.Forms.CheckBox
+            {
+                Text = "Show business contact details on receipts",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
+                Margin = new Padding(3, 10, 3, 10)
+            };
+
+            AddSettingsField(receiptGroup, "Receipt Header", txtReceiptHeader);
+            AddSettingsField(receiptGroup, "Receipt Footer", txtReceiptFooter);
+
+            receiptGroup.Controls.Add(chkShowBusinessContactDetails);
+
+            // System Preferences
+            var systemGroup = CreateSettingsGroup("System Preferences");
+
+            cmbCurrencyCode = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F),
+                Width = 250
+            };
+
+            cmbCurrencyCode.Items.AddRange(new object[]
+            {
+        "JMD",
+        "USD"
+            });
+
+            cmbDateFormat = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = new Font("Segoe UI", 10F),
+                Width = 250
+            };
+
+            cmbDateFormat.Items.AddRange(new object[]
+            {
+        "dd/MM/yyyy",
+        "MM/dd/yyyy",
+        "yyyy-MM-dd"
+            });
+
+            AddSettingsField(systemGroup, "Currency", cmbCurrencyCode);
+            AddSettingsField(systemGroup, "Date Format", cmbDateFormat);
+
+            // Inventory Preferences
+            var inventoryGroup = CreateSettingsGroup(
+                "Inventory Preferences");
+
+            nudDefaultMinimumStockLevel = new NumericUpDown
+            {
+                Minimum = 0,
+                Maximum = 100000,
+                Width = 250,
+                Font = new Font("Segoe UI", 10F)
+            };
+
+            AddSettingsField(
+                inventoryGroup,
+                "Default Minimum Stock Level",
+                nudDefaultMinimumStockLevel);
+
+            // Save button
+            btnSaveSettings = new Button
+            {
+                Text = "Save Settings",
+                Width = 150,
+                Height = 40,
+                BackColor = Color.FromArgb(37, 99, 235),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                Margin = new Padding(3, 15, 3, 10)
+            };
+
+            btnSaveSettings.FlatAppearance.BorderSize = 0;
+            btnSaveSettings.Click += btnSaveSettings_Click;
+
+            // Add sections
+            mainLayout.Controls.Add(businessGroup);
+            mainLayout.Controls.Add(receiptGroup);
+            mainLayout.Controls.Add(systemGroup);
+            mainLayout.Controls.Add(inventoryGroup);
+            mainLayout.Controls.Add(btnSaveSettings);
+
+            pnlSettings.Controls.Add(mainLayout);
+        }
+
+        private GroupBox CreateSettingsGroup(string title)
+        {
+            return new GroupBox
+            {
+                Text = title,
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                Padding = new Padding(15),
+                Margin = new Padding(5, 5, 5, 15)
+            };
+        }
+
+        private TextBox CreateSettingsTextBox()
+        {
+            return new TextBox
+            {
+                Width = 350,
+                Font = new Font("Segoe UI", 10F),
+                Margin = new Padding(3, 5, 3, 10)
+            };
+        }
+
+        private void AddSettingsField(
+            System.Windows.Forms.GroupBox group,
+            string labelText,
+            System.Windows.Forms.Control input)
+        {
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                RowCount = 1,
+                Margin = new Padding(3, 5, 3, 5)
+            };
+
+            layout.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Absolute, 180F));
+
+            layout.ColumnStyles.Add(
+                new ColumnStyle(SizeType.Percent, 100F));
+
+            var label = new Label
+            {
+                Text = labelText,
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(3, 8, 3, 8)
+            };
+
+            input.Anchor = AnchorStyles.Left;
+
+            layout.Controls.Add(label, 0, 0);
+            layout.Controls.Add(input, 1, 0);
+
+            group.Controls.Add(layout);
+        }
+
 
         private Panel CreateDashboardCard(
             string title,
@@ -554,6 +771,99 @@ namespace KKWholesalePOS.UI
             LoadDashboardSummary();
         }
 
+        private void LoadBusinessSettings()
+        {
+            try
+            {
+                var settings = _businessSettingsService.GetSettings();
+
+                txtBusinessName.Text = settings.BusinessName;
+                txtBusinessAddress.Text = settings.BusinessAddress;
+                txtPhoneNumber.Text = settings.PhoneNumber;
+                txtEmailAddress.Text = settings.EmailAddress;
+
+                txtReceiptHeader.Text = settings.ReceiptHeader;
+                txtReceiptFooter.Text = settings.ReceiptFooter;
+
+                chkShowBusinessContactDetails.Checked =
+                    settings.ShowBusinessContactDetails;
+
+                cmbCurrencyCode.SelectedItem = settings.CurrencyCode;
+                cmbDateFormat.SelectedItem = settings.DateFormat;
+
+                nudDefaultMinimumStockLevel.Value =
+                    settings.DefaultMinimumStockLevel;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show(
+                    "You do not have permission to access business settings.",
+                    "Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Unable to load business settings: {ex.Message}",
+                    "Settings Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnSaveSettings_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var settings = _businessSettingsService.GetSettings();
+
+                settings.BusinessName = txtBusinessName.Text.Trim();
+                settings.BusinessAddress = txtBusinessAddress.Text.Trim();
+                settings.PhoneNumber = txtPhoneNumber.Text.Trim();
+                settings.EmailAddress = txtEmailAddress.Text.Trim();
+
+                settings.ReceiptHeader = txtReceiptHeader.Text.Trim();
+                settings.ReceiptFooter = txtReceiptFooter.Text.Trim();
+
+                settings.ShowBusinessContactDetails =
+                    chkShowBusinessContactDetails.Checked;
+
+                settings.CurrencyCode =
+                    cmbCurrencyCode.SelectedItem?.ToString() ?? "JMD";
+
+                settings.DateFormat =
+                    cmbDateFormat.SelectedItem?.ToString() ?? "dd/MM/yyyy";
+
+                settings.DefaultMinimumStockLevel =
+                    (int)nudDefaultMinimumStockLevel.Value;
+
+                _businessSettingsService.UpdateSettings(settings);
+
+                MessageBox.Show(
+                    "Business settings saved successfully.",
+                    "Settings Saved",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show(
+                    "You do not have permission to update business settings.",
+                    "Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Unable to save business settings: {ex.Message}",
+                    "Settings Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
         private void LoadDashboardSummary()
         {
             try
@@ -620,7 +930,14 @@ namespace KKWholesalePOS.UI
 
         private void btnSettings_Click(object sender, EventArgs e)
         {
+            if (!RequirePermission("Settings.Manage"))
+            {
+                return;
+            }
+
             ShowPage(pnlSettings, "Settings", btnSettings);
+
+            LoadBusinessSettings();
         }
 
         private void btnLogout_Click(object sender, EventArgs e)
