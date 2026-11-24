@@ -51,6 +51,11 @@ namespace KKWholesalePOS.UI
         private Label lblOverdueCreditValue = null!;
         private Label lblTransactionsToday = null!;
         private Label lblOutOfStockValue = null!;
+        private Panel _pnlOutstandingCreditCard = null!;
+        private Panel _pnlOutstandingConsignmentCard = null!;
+        private Panel _pnlLowStockCard = null!;
+        private Panel _pnlOverdueCreditCard = null!;
+        private Panel _pnlOutOfStockCard = null!;
         // ==========================================
         // Credit Management Controls
         // ==========================================
@@ -116,7 +121,8 @@ namespace KKWholesalePOS.UI
         private readonly PrintDocument _reportPrintDocument = new();
         private int _printRowIndex;
         private string _currentReportName = "Report";
-
+        private Label lblStatementReference = null!;
+        private ComboBox cmbStatementReference = null!;
         public MainForm(
             UserSessionService userSession,
             LoginService loginService,
@@ -133,6 +139,20 @@ namespace KKWholesalePOS.UI
             CreditService creditService)
         {
             InitializeComponent();
+
+            _reportingService = reportingService;
+            _dashboardService = dashboardService;
+            _userSession = userSession;
+            _loginService = loginService;
+            _customerRepository = customerRepository;
+            _regularSaleService = regularSaleService;
+            _userManagementService = userManagementService;
+            _roleManagementService = roleManagementService;
+            _permissionManagementService = permissionManagementService;
+            _auditLogService = auditLogService;
+            _authorizationService = authorizationService;
+            _businessSettingsService = businessSettingsService;
+            _creditService = creditService;
 
             this.FormClosing += MainForm_FormClosing;
 
@@ -183,20 +203,6 @@ namespace KKWholesalePOS.UI
             _reportPrintDocument.PrintPage += ReportPrintDocument_PrintPage;
 
             btnPrintReport.Click += btnPrintReport_Click;
-
-            _reportingService = reportingService;
-            _dashboardService = dashboardService;
-            _userSession = userSession;
-            _loginService = loginService;
-            _customerRepository = customerRepository;
-            _regularSaleService = regularSaleService;
-            _userManagementService = userManagementService;
-            _roleManagementService = roleManagementService;
-            _permissionManagementService = permissionManagementService;
-            _auditLogService = auditLogService;
-            _authorizationService = authorizationService;
-            _businessSettingsService = businessSettingsService;
-            _creditService = creditService;
 
             if (HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage"))
@@ -265,44 +271,8 @@ namespace KKWholesalePOS.UI
         {
             tlpDashboardCards.SuspendLayout();
 
-            tlpDashboardCards.Controls.Clear();
-            tlpDashboardCards.ColumnStyles.Clear();
-            tlpDashboardCards.RowStyles.Clear();
-
-            tlpDashboardCards.ColumnCount = 3;
-            tlpDashboardCards.RowCount = 3;
-
-            // Sales Today card layout
-            lblSalesTodayTitle.Location = new System.Drawing.Point(20, 8);
-
-            lblSalesTodayValue.Location = new System.Drawing.Point(20, 32);
-            lblSalesTodayValue.Font = new System.Drawing.Font(
-                "Segoe UI", 24F, System.Drawing.FontStyle.Bold);
-
-            lblTransactionsToday = new Label
-            {
-                AutoSize = true,
-                Font = new System.Drawing.Font(
-                    "Segoe UI", 9F, System.Drawing.FontStyle.Regular),
-                ForeColor = System.Drawing.Color.FromArgb(107, 114, 128),
-                Location = new System.Drawing.Point(20, 95),
-                Text = "0 transactions"
-            };
-
-            pnlSalesToday.Controls.Add(lblTransactionsToday);
-            lblTransactionsToday.BringToFront();
-
-            for (int i = 0; i < 3; i++)
-            {
-                tlpDashboardCards.ColumnStyles.Add(
-                    new ColumnStyle(SizeType.Percent, 33.333F));
-
-                tlpDashboardCards.RowStyles.Add(
-                    new RowStyle(SizeType.Percent, 33.333F));
-            }
-
             Panel[] existingCards =
-            {
+                        {
                 pnlTotalProducts,
                 pnlActiveCustomers,
                 pnlSalesToday,
@@ -318,39 +288,151 @@ namespace KKWholesalePOS.UI
             lblActiveCustomersTitle.Text = "Total Customers";
             lblPendingConsignmentsTitle.Text = "Unsettled Consignments";
 
-            // Add existing cards
-            tlpDashboardCards.Controls.Add(pnlTotalProducts, 0, 0);
-            tlpDashboardCards.Controls.Add(pnlActiveCustomers, 1, 0);
-            tlpDashboardCards.Controls.Add(pnlSalesToday, 2, 0);
-            tlpDashboardCards.Controls.Add(pnlPendingConsignments, 0, 1);
+            lblTransactionsToday = new Label
+            {
+                AutoSize = true,
+                Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Regular),
+                ForeColor = System.Drawing.Color.FromArgb(107, 114, 128),
+                Location = new System.Drawing.Point(
+                    lblSalesTodayValue.Left,
+                    lblSalesTodayValue.Bottom + 6),
+                Text = "0 transactions"
+            };
+            pnlSalesToday.Controls.Add(lblTransactionsToday);
+            // END OF ADDED BLOCK
 
-            // Create additional cards
-            Panel outstandingCreditCard = CreateDashboardCard(
+            // Create additional cards once
+            _pnlOutstandingCreditCard = CreateDashboardCard(
                 "Outstanding Credit",
                 out lblOutstandingCreditValue);
 
-            Panel outstandingConsignmentCard = CreateDashboardCard(
+            // Create additional cards once
+            _pnlOutstandingCreditCard = CreateDashboardCard(
+                "Outstanding Credit",
+                out lblOutstandingCreditValue);
+
+            _pnlOutstandingConsignmentCard = CreateDashboardCard(
                 "Outstanding Consignment",
                 out lblOutstandingConsignmentValue);
 
-            Panel lowStockCard = CreateDashboardCard(
+            _pnlLowStockCard = CreateDashboardCard(
                 "Low Stock Products",
                 out lblLowStockValue);
 
-            Panel overdueCreditCard = CreateDashboardCard(
+            _pnlOverdueCreditCard = CreateDashboardCard(
                 "Overdue Credit Accounts",
                 out lblOverdueCreditValue);
 
-            Panel outOfStockCard = CreateDashboardCard(
+            _pnlOutOfStockCard = CreateDashboardCard(
                 "Out of Stock Products",
                 out lblOutOfStockValue);
 
-            // Add additional cards
-            tlpDashboardCards.Controls.Add(outstandingCreditCard, 1, 1);
-            tlpDashboardCards.Controls.Add(outstandingConsignmentCard, 2, 1);
-            tlpDashboardCards.Controls.Add(lowStockCard, 0, 2);
-            tlpDashboardCards.Controls.Add(overdueCreditCard, 1, 2);
-            tlpDashboardCards.Controls.Add(outOfStockCard, 2, 2);
+            tlpDashboardCards.ResumeLayout();
+
+            ApplyDashboardPermissions();
+        }
+
+        private void ApplyDashboardPermissions()
+        {
+            if (tlpDashboardCards == null || _pnlOutOfStockCard == null)
+                return;
+
+            bool canSeeSales =
+                HasPermission("Sales.Process") ||
+                HasPermission("Reports.View");
+
+            bool canSeeCustomers =
+                HasPermission("Customers.Manage") ||
+                HasPermission("Credit.Manage") ||
+                HasPermission("Reports.View");
+
+            bool canSeeInventory =
+                HasPermission("Inventory.View") ||
+                HasPermission("Inventory.Receive") ||
+                HasPermission("Inventory.Adjust") ||
+                HasPermission("Reports.View");
+
+            bool canSeeProducts =
+                canSeeInventory ||
+                HasPermission("Sales.Process");
+
+            bool canSeeCredit =
+                HasPermission("Credit.Manage") ||
+                HasPermission("Reports.View");
+
+            bool canSeeConsignment =
+                HasPermission("Consignment.Process") ||
+                HasPermission("Consignment.Manage") ||
+                HasPermission("Reports.View");
+
+            var visibleCards = new List<Panel>();
+
+            if (canSeeSales)
+                visibleCards.Add(pnlSalesToday);
+
+            if (canSeeCustomers)
+                visibleCards.Add(pnlActiveCustomers);
+
+            if (canSeeProducts)
+                visibleCards.Add(pnlTotalProducts);
+
+            if (canSeeCredit)
+            {
+                visibleCards.Add(_pnlOutstandingCreditCard);
+                visibleCards.Add(_pnlOverdueCreditCard);
+            }
+
+            if (canSeeConsignment)
+            {
+                visibleCards.Add(pnlPendingConsignments);
+                visibleCards.Add(_pnlOutstandingConsignmentCard);
+            }
+
+            if (canSeeInventory)
+            {
+                visibleCards.Add(_pnlLowStockCard);
+                visibleCards.Add(_pnlOutOfStockCard);
+            }
+
+            tlpDashboardCards.SuspendLayout();
+            tlpDashboardCards.Controls.Clear();
+            tlpDashboardCards.ColumnStyles.Clear();
+            tlpDashboardCards.RowStyles.Clear();
+
+            if (visibleCards.Count == 0)
+            {
+                tlpDashboardCards.ColumnCount = 1;
+                tlpDashboardCards.RowCount = 1;
+                tlpDashboardCards.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+                tlpDashboardCards.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+                tlpDashboardCards.ResumeLayout();
+                return;
+            }
+
+            int columns = Math.Min(3, visibleCards.Count);
+            int rows = (int)Math.Ceiling(visibleCards.Count / (double)columns);
+
+            tlpDashboardCards.ColumnCount = columns;
+            tlpDashboardCards.RowCount = rows;
+
+            for (int c = 0; c < columns; c++)
+            {
+                tlpDashboardCards.ColumnStyles.Add(
+                    new ColumnStyle(SizeType.Percent, 100F / columns));
+            }
+
+            for (int r = 0; r < rows; r++)
+            {
+                tlpDashboardCards.RowStyles.Add(
+                    new RowStyle(SizeType.Percent, 100F / rows));
+            }
+
+            for (int i = 0; i < visibleCards.Count; i++)
+            {
+                int col = i % columns;
+                int row = i / columns;
+                tlpDashboardCards.Controls.Add(visibleCards[i], col, row);
+            }
 
             tlpDashboardCards.ResumeLayout();
         }
@@ -601,6 +683,8 @@ namespace KKWholesalePOS.UI
             cmbReportType.Items.Clear();
 
             cmbReportType.Items.Add("Sales Report");
+            cmbReportType.Items.Add("Credit Report");
+            cmbReportType.Items.Add("Consignment Report");
             cmbReportType.Items.Add("Credit Statement");
             cmbReportType.Items.Add("Consignment Statement");
             cmbReportType.Items.Add("Inventory Report");
@@ -613,6 +697,45 @@ namespace KKWholesalePOS.UI
                             1);
 
             dtpEndDate.Value = DateTime.Today;
+
+            lblStatementReference = new Label
+            {
+                Text = "Reference:",
+                AutoSize = true,
+                Font = lblCustomer.Font,
+                ForeColor = lblCustomer.ForeColor,
+                Margin = new Padding(12, 8, 4, 0),
+                Visible = false
+            };
+
+            cmbStatementReference = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Font = cmbCustomer.Font,
+                Width = 190,
+                Visible = false
+            };
+
+            if (cmbCustomer.Parent != null)
+            {
+                cmbCustomer.Parent.Controls.Add(lblStatementReference);
+                cmbCustomer.Parent.Controls.Add(cmbStatementReference);
+
+                // If cmbCustomer uses explicit Location instead of a FlowLayoutPanel, place right beside it
+                if (cmbCustomer.Parent is not FlowLayoutPanel)
+                {
+                    lblStatementReference.Location = new Point(
+                        cmbCustomer.Right + 15,
+                        lblCustomer.Top);
+
+                    cmbStatementReference.Location = new Point(
+                        lblStatementReference.Right + 6,
+                        cmbCustomer.Top);
+                }
+            }
+
+            cmbCustomer.SelectedIndexChanged += (s, e) => PopulateStatementReferences();
+            cmbStatementReference.SelectedIndexChanged += (s, e) => DisableReportExports();
 
             btnGenerateReport.Click += btnGenerateReport_Click;
         }
@@ -647,51 +770,120 @@ namespace KKWholesalePOS.UI
         }
 
         private void cmbReportType_SelectedIndexChanged(
-            object sender, EventArgs e)
+                    object? sender, EventArgs e)
         {
             DisableReportExports();
 
             bool requiresCustomer =
-                cmbReportType.SelectedIndex == 1 ||
-                cmbReportType.SelectedIndex == 2;
+                cmbReportType.SelectedIndex == 3 ||
+                cmbReportType.SelectedIndex == 4;
 
-            bool usesDateRange = cmbReportType.SelectedIndex != 3;
+            bool usesDateRange = cmbReportType.SelectedIndex != 5;
 
             lblCustomer.Visible = requiresCustomer;
             cmbCustomer.Visible = requiresCustomer;
+            lblStatementReference.Visible = requiresCustomer;
+            cmbStatementReference.Visible = requiresCustomer;
+
             dtpStartDate.Enabled = usesDateRange;
             dtpEndDate.Enabled = usesDateRange;
 
             if (!requiresCustomer)
             {
                 cmbCustomer.SelectedIndex = -1;
+                cmbStatementReference.Items.Clear();
+            }
+            else
+            {
+                PopulateStatementReferences();
             }
         }
 
-        private void dtpStartDate_ValueChanged(
-            object sender, EventArgs e)
+        private void PopulateStatementReferences()
         {
-            btnExportPdf.Enabled = false;
-            btnExportExcel.Enabled = false;
-            btnExportWord.Enabled = false;
+            if (cmbStatementReference == null)
+                return;
+
+            cmbStatementReference.Items.Clear();
+            cmbStatementReference.Items.Add("All in Date Range");
+
+            if (cmbCustomer.SelectedValue is not int customerId)
+            {
+                cmbStatementReference.SelectedIndex = 0;
+                return;
+            }
+
+            DateTime startDate = dtpStartDate.Value.Date;
+            DateTime endDate = dtpEndDate.Value.Date;
+            if (startDate > endDate)
+            {
+                cmbStatementReference.SelectedIndex = 0;
+                return;
+            }
+
+            try
+            {
+                if (cmbReportType.SelectedIndex == 3)
+                {
+                    var statement = _reportingService.GetCreditStatement(
+                        customerId, startDate, endDate);
+
+                    var refs = statement.Transactions
+                        .Select(t => t.ReferenceNumber)
+                        .Distinct()
+                        .Reverse();
+
+                    foreach (var reference in refs)
+                        cmbStatementReference.Items.Add(reference);
+                }
+                else if (cmbReportType.SelectedIndex == 4)
+                {
+                    var statement = _reportingService.GetConsignmentStatement(
+                        customerId, startDate, endDate);
+
+                    var refs = statement.Transactions
+                        .Select(t => t.ReferenceNumber)
+                        .Distinct()
+                        .Reverse();
+
+                    foreach (var reference in refs)
+                        cmbStatementReference.Items.Add(reference);
+                }
+            }
+            catch
+            {
+                // Keep "All in Date Range" if lookup fails
+            }
+
+            // Default to the latest individual invoice if one exists
+            cmbStatementReference.SelectedIndex =
+                cmbStatementReference.Items.Count > 1 ? 1 : 0;
+        }
+
+        private void dtpStartDate_ValueChanged(
+            object? sender, EventArgs e)
+        {
+            DisableReportExports();
 
             if (dtpStartDate.Value.Date > dtpEndDate.Value.Date)
             {
                 dtpEndDate.Value = dtpStartDate.Value.Date;
             }
+
+            PopulateStatementReferences();
         }
 
         private void dtpEndDate_ValueChanged(
-            object sender, EventArgs e)
+            object? sender, EventArgs e)
         {
-            btnExportPdf.Enabled = false;
-            btnExportExcel.Enabled = false;
-            btnExportWord.Enabled = false;
+            DisableReportExports();
 
             if (dtpEndDate.Value.Date < dtpStartDate.Value.Date)
             {
                 dtpStartDate.Value = dtpEndDate.Value.Date;
             }
+
+            PopulateStatementReferences();
         }
 
         private void UpdateSessionDisplay()
@@ -1479,6 +1671,7 @@ namespace KKWholesalePOS.UI
 
         private void LoadDashboardSummary()
         {
+            ApplyDashboardPermissions();
             try
             {
                 var summary = _dashboardService.GetDashboardSummary();
@@ -1494,8 +1687,11 @@ namespace KKWholesalePOS.UI
                 lblSalesTodayValue.Text =
                     summary.SalesToday.ToString("C");
 
-                lblTransactionsToday.Text =
-                    $"{summary.TransactionsToday} transactions";
+                if (lblTransactionsToday != null)
+                {
+                    lblTransactionsToday.Text =
+                        $"{summary.TransactionsToday} transactions";
+                }
 
                 // Consignments
                 lblPendingConsignmentsValue.Text =
@@ -1580,6 +1776,7 @@ namespace KKWholesalePOS.UI
             {
                 UpdateSessionDisplay();
                 ApplyNavigationPermissions();
+                ApplyDashboardPermissions();
                 ShowDefaultPage();
                 Show();
             }
@@ -1612,7 +1809,7 @@ namespace KKWholesalePOS.UI
                 DateTime startDate = dtpStartDate.Value.Date;
                 DateTime endDate = dtpEndDate.Value.Date;
 
-                if (cmbReportType.SelectedIndex != 3 && startDate > endDate)
+                if (cmbReportType.SelectedIndex != 5 && startDate > endDate)
                 {
                     MessageBox.Show(
                         "Start date cannot be after the end date.",
@@ -1622,6 +1819,11 @@ namespace KKWholesalePOS.UI
                     return;
                 }
 
+                string? selectedReference =
+                    cmbStatementReference.SelectedIndex > 0
+                        ? cmbStatementReference.SelectedItem?.ToString()
+                        : null;
+
                 switch (cmbReportType.SelectedIndex)
                 {
                     case 0:
@@ -1630,6 +1832,16 @@ namespace KKWholesalePOS.UI
                         break;
 
                     case 1:
+                        DisplayCreditReport(
+                            _reportingService.GetCreditReport(startDate, endDate));
+                        break;
+
+                    case 2:
+                        DisplayConsignmentReport(
+                            _reportingService.GetConsignmentReport(startDate, endDate));
+                        break;
+
+                    case 3:
                         if (cmbCustomer.SelectedValue is not int creditCustomerId)
                         {
                             MessageBox.Show(
@@ -1642,10 +1854,10 @@ namespace KKWholesalePOS.UI
 
                         DisplayCreditStatement(
                             _reportingService.GetCreditStatement(
-                                creditCustomerId, startDate, endDate));
+                                creditCustomerId, startDate, endDate, selectedReference));
                         break;
 
-                    case 2:
+                    case 4:
                         if (cmbCustomer.SelectedValue is not int consignmentCustomerId)
                         {
                             MessageBox.Show(
@@ -1658,10 +1870,10 @@ namespace KKWholesalePOS.UI
 
                         DisplayConsignmentStatement(
                             _reportingService.GetConsignmentStatement(
-                                consignmentCustomerId, startDate, endDate));
+                                consignmentCustomerId, startDate, endDate, selectedReference));
                         break;
 
-                    case 3:
+                    case 5:
                         DisplayInventoryReport(
                             _reportingService.GetInventoryReport());
                         break;
@@ -1876,12 +2088,190 @@ namespace KKWholesalePOS.UI
             btnExportWord.Enabled = report.TransactionCount > 0;
         }
 
+        private void DisplayCreditReport(CreditReportResult report)
+        {
+            _currentReportName = "Credit Report";
+
+            dgvReportResults.DataSource = null;
+            dgvReportResults.DataSource = report.Accounts.ToList();
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.CreditSaleId)] != null)
+                dgvReportResults.Columns[nameof(CreditReportRow.CreditSaleId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.IssuedDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.IssuedDate)]!.HeaderText = "Date Issued";
+                dgvReportResults.Columns[nameof(CreditReportRow.IssuedDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.DueDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.DueDate)]!.HeaderText = "Due Date";
+                dgvReportResults.Columns[nameof(CreditReportRow.DueDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.ReferenceNumber)] != null)
+                dgvReportResults.Columns[nameof(CreditReportRow.ReferenceNumber)]!.HeaderText = "Reference";
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.CustomerName)] != null)
+                dgvReportResults.Columns[nameof(CreditReportRow.CustomerName)]!.HeaderText = "Customer";
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.PurchaseAmount)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.PurchaseAmount)]!.HeaderText = "Purchase Amount";
+                dgvReportResults.Columns[nameof(CreditReportRow.PurchaseAmount)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.CreditFee)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.CreditFee)]!.HeaderText = "Credit Fee";
+                dgvReportResults.Columns[nameof(CreditReportRow.CreditFee)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.TotalAmount)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.TotalAmount)]!.HeaderText = "Total Amount";
+                dgvReportResults.Columns[nameof(CreditReportRow.TotalAmount)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.AmountPaid)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.AmountPaid)]!.HeaderText = "Paid";
+                dgvReportResults.Columns[nameof(CreditReportRow.AmountPaid)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditReportRow.OutstandingBalance)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditReportRow.OutstandingBalance)]!.HeaderText = "Outstanding";
+                dgvReportResults.Columns[nameof(CreditReportRow.OutstandingBalance)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            lblReportSummary.Text =
+                $"Credit Report | {report.StartDate:dd MMM yyyy} - {report.EndDate:dd MMM yyyy} | " +
+                $"Accounts: {report.Accounts.Count} | " +
+                $"Purchases: {report.TotalPurchases:C} | " +
+                $"Fees: {report.TotalFees:C} | " +
+                $"Paid: {report.TotalPaid:C} | " +
+                $"Outstanding: {report.TotalOutstanding:C}";
+
+            btnPrintReport.Enabled = report.Accounts.Count > 0;
+            btnExportPdf.Enabled = true;
+            btnExportExcel.Enabled = true;
+            btnExportWord.Enabled = true;
+        }
+
+        private void DisplayConsignmentReport(ConsignmentReportResult report)
+        {
+            _currentReportName = "Consignment Report";
+
+            dgvReportResults.DataSource = null;
+            dgvReportResults.DataSource = report.Consignments.ToList();
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.ConsignmentId)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.ConsignmentId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.IssueDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.IssueDate)]!.HeaderText = "Issue Date";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.IssueDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.ReferenceNumber)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.ReferenceNumber)]!.HeaderText = "Reference";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.CustomerName)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.CustomerName)]!.HeaderText = "Customer";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.OriginalGoodsValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.OriginalGoodsValue)]!.HeaderText = "Original Value";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.OriginalGoodsValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.AcceptedReturnsValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.AcceptedReturnsValue)]!.HeaderText = "Accepted Returns";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.AcceptedReturnsValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.ConsignmentFee)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.ConsignmentFee)]!.HeaderText = "Fee";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.ConsignmentFee)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.Payments)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.Payments)]!.HeaderText = "Payments";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.Payments)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentReportRow.OutstandingBalance)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.OutstandingBalance)]!.HeaderText = "Outstanding";
+                dgvReportResults.Columns[nameof(ConsignmentReportRow.OutstandingBalance)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            lblReportSummary.Text =
+                $"Consignment Report | {report.StartDate:dd MMM yyyy} - {report.EndDate:dd MMM yyyy} | " +
+                $"Consignments: {report.Consignments.Count} | " +
+                $"Original Value: {report.TotalOriginalValue:C} | " +
+                $"Returns: {report.TotalAcceptedReturns:C} | " +
+                $"Fees: {report.TotalFees:C} | " +
+                $"Payments: {report.TotalPayments:C} | " +
+                $"Outstanding: {report.TotalOutstanding:C}";
+
+            btnPrintReport.Enabled = report.Consignments.Count > 0;
+            btnExportPdf.Enabled = true;
+            btnExportExcel.Enabled = true;
+            btnExportWord.Enabled = true;
+        }
+
         private void DisplayCreditStatement(CreditStatementResult report)
         {
             _currentReportName = "Credit Statement";
 
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Transactions.ToList();
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.CreditSaleId)] != null)
+                dgvReportResults.Columns[nameof(CreditStatementRow.CreditSaleId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.CreditSaleLineId)] != null)
+                dgvReportResults.Columns[nameof(CreditStatementRow.CreditSaleLineId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.TransactionDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditStatementRow.TransactionDate)]!.HeaderText = "Date Issued";
+                dgvReportResults.Columns[nameof(CreditStatementRow.TransactionDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.DueDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditStatementRow.DueDate)]!.HeaderText = "Due Date";
+                dgvReportResults.Columns[nameof(CreditStatementRow.DueDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.ReferenceNumber)] != null)
+                dgvReportResults.Columns[nameof(CreditStatementRow.ReferenceNumber)]!.HeaderText = "Reference";
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.ProductName)] != null)
+                dgvReportResults.Columns[nameof(CreditStatementRow.ProductName)]!.HeaderText = "Product";
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.UnitPrice)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditStatementRow.UnitPrice)]!.HeaderText = "Unit Price";
+                dgvReportResults.Columns[nameof(CreditStatementRow.UnitPrice)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.Quantity)] != null)
+                dgvReportResults.Columns[nameof(CreditStatementRow.Quantity)]!.HeaderText = "Qty";
+
+            if (dgvReportResults.Columns[nameof(CreditStatementRow.LineTotal)] != null)
+            {
+                dgvReportResults.Columns[nameof(CreditStatementRow.LineTotal)]!.HeaderText = "Line Total";
+                dgvReportResults.Columns[nameof(CreditStatementRow.LineTotal)]!.DefaultCellStyle.Format = "N2";
+            }
 
             lblReportSummary.Text =
                 $"Credit Statement: {report.CustomerName} | " +
@@ -1904,6 +2294,57 @@ namespace KKWholesalePOS.UI
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Transactions.ToList();
 
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.ConsignmentId)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.ConsignmentId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.ConsignmentLineId)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.ConsignmentLineId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.IssueDate)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.IssueDate)]!.HeaderText = "Issue Date";
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.IssueDate)]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.ReferenceNumber)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.ReferenceNumber)]!.HeaderText = "Reference";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.ProductName)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.ProductName)]!.HeaderText = "Product";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.UnitPrice)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.UnitPrice)]!.HeaderText = "Unit Price";
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.UnitPrice)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.QuantityIssued)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.QuantityIssued)]!.HeaderText = "Qty Issued";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.QuantityAcceptedReturned)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.QuantityAcceptedReturned)]!.HeaderText = "Qty Returned";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.RemainingQuantity)] != null)
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.RemainingQuantity)]!.HeaderText = "Qty Remaining";
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.OriginalLineValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.OriginalLineValue)]!.HeaderText = "Original Value";
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.OriginalLineValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.AcceptedReturnsValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.AcceptedReturnsValue)]!.HeaderText = "Accepted Returns";
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.AcceptedReturnsValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(ConsignmentStatementRow.NetGoodsValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.NetGoodsValue)]!.HeaderText = "Net Goods Value";
+                dgvReportResults.Columns[nameof(ConsignmentStatementRow.NetGoodsValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
             lblReportSummary.Text =
                 $"Consignment Statement: {report.CustomerName} | " +
                 $"Original Value: {report.TotalOriginalValue:C} | " +
@@ -1925,9 +2366,48 @@ namespace KKWholesalePOS.UI
             dgvReportResults.DataSource = null;
             dgvReportResults.DataSource = report.Products.ToList();
 
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.ProductId)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.ProductId)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.IsLowStock)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.IsLowStock)]!.Visible = false;
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.ProductName)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.ProductName)]!.HeaderText = "Product";
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.UnitsPerCase)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.UnitsPerCase)]!.HeaderText = "Units/Case";
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.AvailableStock)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.AvailableStock)]!.HeaderText = "Available Stock";
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.OutstandingConsignmentQuantity)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.OutstandingConsignmentQuantity)]!.HeaderText = "On Consignment";
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.MinimumStockLevel)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.MinimumStockLevel)]!.HeaderText = "Reorder Level";
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.UnitSellingPrice)] != null)
+            {
+                dgvReportResults.Columns[nameof(InventoryReportRow.UnitSellingPrice)]!.HeaderText = "Unit Price";
+                dgvReportResults.Columns[nameof(InventoryReportRow.UnitSellingPrice)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.StockRetailValue)] != null)
+            {
+                dgvReportResults.Columns[nameof(InventoryReportRow.StockRetailValue)]!.HeaderText = "Stock Value";
+                dgvReportResults.Columns[nameof(InventoryReportRow.StockRetailValue)]!.DefaultCellStyle.Format = "N2";
+            }
+
+            if (dgvReportResults.Columns[nameof(InventoryReportRow.StockStatus)] != null)
+                dgvReportResults.Columns[nameof(InventoryReportRow.StockStatus)]!.HeaderText = "Status";
+
             lblReportSummary.Text =
                 $"Inventory Report | Products: {report.TotalProducts} | " +
-                $"Low Stock Items: {report.LowStockProductCount} | " +
+                $"Units In Stock: {report.TotalUnitsInStock} | " +
+                $"On Consignment: {report.TotalUnitsOnConsignment} | " +
+                $"Low/Out of Stock: {report.LowStockProductCount} | " +
+                $"Total Stock Value: {report.TotalInventoryValue:C} | " +
                 $"Generated: {report.GeneratedAt:dd MMM yyyy HH:mm}";
 
             btnPrintReport.Enabled = report.TotalProducts > 0;
@@ -3821,9 +4301,10 @@ namespace KKWholesalePOS.UI
 
         private bool HasPermission(string permissionName)
         {
-            var currentUser = _userSession.CurrentUser;
+            var currentUser = _userSession?.CurrentUser;
 
             return currentUser != null &&
+                   _authorizationService != null &&
                    _authorizationService.HasPermission(
                        currentUser,
                        permissionName);

@@ -9,6 +9,15 @@ public class InventoryReportResult
 
     public int TotalProducts => Products.Count;
 
+    public int TotalUnitsInStock =>
+        Products.Sum(product => product.AvailableStock);
+
+    public int TotalUnitsOnConsignment =>
+        Products.Sum(product => product.OutstandingConsignmentQuantity);
+
     public int LowStockProductCount =>
         Products.Count(product => product.IsLowStock);
+
+    public decimal TotalInventoryValue =>
+        Products.Sum(product => product.StockRetailValue);
 }

@@ -1,5 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Models.Reports;
@@ -79,6 +78,50 @@ public class ReportingServiceTests
             repository => repository.GetSalesReport(
                 It.IsAny<DateTime>(), It.IsAny<DateTime>()),
             Times.Never);
+    }
+
+    [Fact]
+    public void GetCreditReport_StartDateAfterEndDate_ThrowsArgumentException()
+    {
+        var service = CreateAuthorizedService();
+
+        Assert.Throws<ArgumentException>(() =>
+            service.GetCreditReport(
+                new DateTime(2026, 11, 21),
+                new DateTime(2026, 11, 20)));
+    }
+
+    [Fact]
+    public void GetConsignmentReport_StartDateAfterEndDate_ThrowsArgumentException()
+    {
+        var service = CreateAuthorizedService();
+
+        Assert.Throws<ArgumentException>(() =>
+            service.GetConsignmentReport(
+                new DateTime(2026, 11, 21),
+                new DateTime(2026, 11, 20)));
+    }
+
+    [Fact]
+    public void GetCreditReport_WithoutPermission_ThrowsUnauthorizedAccessException()
+    {
+        var service = CreateUnauthorizedService();
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.GetCreditReport(
+                new DateTime(2026, 11, 1),
+                new DateTime(2026, 11, 21)));
+    }
+
+    [Fact]
+    public void GetConsignmentReport_WithoutPermission_ThrowsUnauthorizedAccessException()
+    {
+        var service = CreateUnauthorizedService();
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.GetConsignmentReport(
+                new DateTime(2026, 11, 1),
+                new DateTime(2026, 11, 21)));
     }
 
     [Fact]

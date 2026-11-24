@@ -4,20 +4,21 @@ public class CreditStatementRow
 {
     public int CreditSaleId { get; set; }
 
+    public int CreditSaleLineId { get; set; }
+
     public DateTime TransactionDate { get; set; }
+
+    public DateTime DueDate { get; set; }
 
     public string ReferenceNumber { get; set; } = string.Empty;
 
-    public decimal PurchaseAmount { get; set; }
+    public string ProductName { get; set; } = string.Empty;
 
-    public decimal CreditFee { get; set; }
+    public string Barcode { get; set; } = string.Empty;
 
-    public DateTime DueDate { get; set; }
-    public bool IsOverdue => OutstandingBalance > 0 &&
-                             DateTime.Now.Date > DueDate.Date;
+    public decimal UnitPrice { get; set; }
 
-    public decimal Payments { get; set; }
+    public int Quantity { get; set; }
 
-    public decimal OutstandingBalance =>
-        PurchaseAmount + CreditFee - Payments;
+    public decimal LineTotal { get; set; }
 }

@@ -47,36 +47,70 @@ public class ReportingService
             endDate.Date);
     }
 
-    public CreditStatementResult GetCreditStatement(
-        int customerId,
+    public CreditReportResult GetCreditReport(
         DateTime startDate,
         DateTime endDate)
     {
         RequirePermission("Reports.View");
 
-        ValidateCustomerAndDateRange(
-            customerId, startDate, endDate);
+        ValidateDateRange(startDate, endDate);
+
+        return _reportingRepository.GetCreditReport(
+            startDate.Date,
+            endDate.Date);
+    }
+
+    public ConsignmentReportResult GetConsignmentReport(
+        DateTime startDate,
+        DateTime endDate)
+    {
+        RequirePermission("Reports.View");
+
+        ValidateDateRange(startDate, endDate);
+
+        return _reportingRepository.GetConsignmentReport(
+            startDate.Date,
+            endDate.Date);
+    }
+
+    public CreditStatementResult GetCreditStatement(
+            int customerId,
+            DateTime startDate,
+            DateTime endDate,
+            string? referenceNumber = null)
+    {
+        RequirePermission("Reports.View");
+
+        if (customerId <= 0)
+            throw new ArgumentException("A valid customer must be selected.", nameof(customerId));
+
+        ValidateDateRange(startDate, endDate);
 
         return _reportingRepository.GetCreditStatement(
             customerId,
             startDate.Date,
-            endDate.Date);
+            endDate.Date,
+            referenceNumber);
     }
 
     public ConsignmentStatementResult GetConsignmentStatement(
         int customerId,
         DateTime startDate,
-        DateTime endDate)
+        DateTime endDate,
+        string? referenceNumber = null)
     {
         RequirePermission("Reports.View");
 
-        ValidateCustomerAndDateRange(
-            customerId, startDate, endDate);
+        if (customerId <= 0)
+            throw new ArgumentException("A valid customer must be selected.", nameof(customerId));
+
+        ValidateDateRange(startDate, endDate);
 
         return _reportingRepository.GetConsignmentStatement(
             customerId,
             startDate.Date,
-            endDate.Date);
+            endDate.Date,
+            referenceNumber);
     }
 
     public InventoryReportResult GetInventoryReport()

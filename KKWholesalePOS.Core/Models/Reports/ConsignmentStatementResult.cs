@@ -14,17 +14,15 @@ public class ConsignmentStatementResult
         = Array.Empty<ConsignmentStatementRow>();
 
     public decimal TotalOriginalValue =>
-        Transactions.Sum(transaction => transaction.OriginalGoodsValue);
+        Transactions.Sum(transaction => transaction.OriginalLineValue);
 
     public decimal TotalAcceptedReturns =>
         Transactions.Sum(transaction => transaction.AcceptedReturnsValue);
 
-    public decimal TotalFees =>
-        Transactions.Sum(transaction => transaction.ConsignmentFee);
+    public decimal TotalFees { get; set; }
 
-    public decimal TotalPayments =>
-        Transactions.Sum(transaction => transaction.Payments);
+    public decimal TotalPayments { get; set; }
 
     public decimal TotalOutstanding =>
-        Transactions.Sum(transaction => transaction.FinalBalance);
+        TotalOriginalValue - TotalAcceptedReturns + TotalFees - TotalPayments;
 }
