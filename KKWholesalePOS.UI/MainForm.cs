@@ -58,9 +58,11 @@ namespace KKWholesalePOS.UI
         private Button _btnSearchCreditAccounts = null!;
         private Button _btnViewCreditPayments = null!;
         private Button _btnRecordCreditPayment = null!;
-        private Panel _pnlCreditManagement = null!;
+        private TextBox _txtCreditCustomerSearch = null!;
         private ComboBox _cmbCreditCustomer = null!;
         private DataGridView _creditAccountsGrid = null!;
+        private List<KKWholesalePOS.Core.Models.Others.Customer> _allCreditCustomers = new();
+        private Panel _pnlCreditManagement = null!;
         // ==========================================
         // User Management Controls
         // ==========================================
@@ -146,6 +148,26 @@ namespace KKWholesalePOS.UI
             _btnSearchCreditAccounts.Click += btnSearchCreditAccounts_Click;
             _btnViewCreditPayments.Click += btnViewCreditPayments_Click;
             _btnRecordCreditPayment.Click += btnRecordCreditPayment_Click;
+
+            _txtCreditCustomerSearch.TextChanged += (sender, e) =>
+            {
+                FilterCreditCustomerDropdown(_txtCreditCustomerSearch.Text);
+            };
+
+            _txtCreditCustomerSearch.KeyDown += (sender, e) =>
+            {
+                if (e.KeyCode == Keys.Enter)
+                {
+                    e.SuppressKeyPress = true;
+                    btnSearchCreditAccounts_Click(sender, EventArgs.Empty);
+                }
+                else if (e.KeyCode == Keys.Down && _cmbCreditCustomer.Items.Count > 0)
+                {
+                    e.SuppressKeyPress = true;
+                    _cmbCreditCustomer.Focus();
+                    _cmbCreditCustomer.DroppedDown = true;
+                }
+            };
 
             _cmbCreditCustomer.SelectedIndexChanged += (sender, e) =>
             {
@@ -789,19 +811,26 @@ namespace KKWholesalePOS.UI
 
             var searchLabel = new Label
             {
-                Text = "Customer:",
+                Text = "Search Customer:",
                 AutoSize = true,
                 Font = new Font("Segoe UI", 10F),
                 Margin = new Padding(3, 8, 8, 3)
             };
 
+            _txtCreditCustomerSearch = new TextBox
+            {
+                Name = "txtCreditCustomerSearch",
+                PlaceholderText = "Type name or phone...",
+                Width = 180,
+                Font = new Font("Segoe UI", 10F),
+                Margin = new Padding(3, 3, 8, 3)
+            };
+
             _cmbCreditCustomer = new ComboBox
             {
                 Name = "cmbCreditCustomer",
-                DropDownStyle = ComboBoxStyle.DropDown,
-                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-                AutoCompleteSource = AutoCompleteSource.ListItems,
-                Width = 260,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 230,
                 Font = new Font("Segoe UI", 10F),
                 Margin = new Padding(3, 3, 10, 3)
             };
@@ -810,7 +839,7 @@ namespace KKWholesalePOS.UI
             {
                 Name = "btnSearchCreditAccounts",
                 Text = "Refresh",
-                Size = new System.Drawing.Size(100, 30),
+                Size = new System.Drawing.Size(95, 30),
                 Font = new Font("Segoe UI", 9F),
                 BackColor = _selectedButtonColor,
                 ForeColor = Color.White,
@@ -851,6 +880,7 @@ namespace KKWholesalePOS.UI
             _btnViewCreditPayments.FlatAppearance.BorderSize = 0;
 
             searchPanel.Controls.Add(searchLabel);
+            searchPanel.Controls.Add(_txtCreditCustomerSearch);
             searchPanel.Controls.Add(_cmbCreditCustomer);
             searchPanel.Controls.Add(_btnSearchCreditAccounts);
             searchPanel.Controls.Add(_btnViewCreditPayments);
@@ -2525,18 +2555,44 @@ namespace KKWholesalePOS.UI
 
         private void LoadCreditCustomers()
         {
+            _allCreditCustomers = _customerRepository.GetAll();
+            FilterCreditCustomerDropdown(_txtCreditCustomerSearch.Text);
+        }
+
+        private void FilterCreditCustomerDropdown(string searchText)
+        {
             int? previousCustomerId = _cmbCreditCustomer.SelectedValue as int?;
-            var customers = _customerRepository.GetAll();
+            string term = searchText?.Trim() ?? string.Empty;
+
+            var filtered = string.IsNullOrEmpty(term)
+                ? _allCreditCustomers
+                : _allCreditCustomers
+                    .Where(c =>
+                        c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrWhiteSpace(c.PhoneNumber) &&
+                         c.PhoneNumber.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                        c.Id.ToString() == term)
+                    .ToList();
 
             _cmbCreditCustomer.DataSource = null;
             _cmbCreditCustomer.DisplayMember = nameof(KKWholesalePOS.Core.Models.Others.Customer.Name);
             _cmbCreditCustomer.ValueMember = nameof(KKWholesalePOS.Core.Models.Others.Customer.Id);
-            _cmbCreditCustomer.DataSource = customers;
+            _cmbCreditCustomer.DataSource = filtered;
 
-            if (previousCustomerId.HasValue &&
-                customers.Any(c => c.Id == previousCustomerId.Value))
+            if (filtered.Count == 0)
+            {
+                _cmbCreditCustomer.SelectedIndex = -1;
+                _creditAccountsGrid.DataSource = null;
+            }
+            else if (previousCustomerId.HasValue &&
+                     filtered.Any(c => c.Id == previousCustomerId.Value))
             {
                 _cmbCreditCustomer.SelectedValue = previousCustomerId.Value;
+            }
+            else if (!string.IsNullOrEmpty(term))
+            {
+                // Automatically select the top match when filtering
+                _cmbCreditCustomer.SelectedIndex = 0;
             }
             else
             {
