@@ -30,6 +30,7 @@ namespace KKWholesalePOS.UI
         private readonly PermissionManagementService _permissionManagementService;
         private readonly AuditLogService _auditLogService;
         private readonly AuthorizationService _authorizationService;
+        private readonly ConsignmentReturnService _consignmentReturnService;
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
@@ -71,7 +72,8 @@ namespace KKWholesalePOS.UI
             RoleManagementService roleManagementService,
             PermissionManagementService permissionManagementService,
             AuditLogService auditLogService,
-            AuthorizationService authorizationService)
+            AuthorizationService authorizationService,
+            ConsignmentReturnService consignmentReturnService)
         {
             InitializeComponent();
 
@@ -90,7 +92,7 @@ namespace KKWholesalePOS.UI
             _reportPrintDocument.PrintPage += ReportPrintDocument_PrintPage;
 
             btnPrintReport.Click += btnPrintReport_Click;
-            
+
             _reportingService = reportingService;
             _dashboardService = dashboardService;
             _userSession = userSession;
@@ -102,6 +104,7 @@ namespace KKWholesalePOS.UI
             _permissionManagementService = permissionManagementService;
             _auditLogService = auditLogService;
             _authorizationService = authorizationService;
+            _consignmentReturnService = consignmentReturnService;
 
             if (HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage"))
@@ -139,12 +142,18 @@ namespace KKWholesalePOS.UI
             // Navigation
             btnDashboard.Click += btnDashboard_Click;
             btnReports.Click += btnReports_Click;
+            btnConsignments.Click += btnConsignments_Click;
             btnUserManagement.Click += btnUserManagement_Click;
             btnSettings.Click += btnSettings_Click;
 
             UpdateSessionDisplay();
 
             ShowDefaultPage();
+        }
+
+        private void btnConsignments_Click(object? sender, EventArgs e)
+        {
+            ShowPage(pnlConsignments, "Consignments", btnConsignments);
         }
 
         private void MainForm_FormClosing(
@@ -435,12 +444,15 @@ namespace KKWholesalePOS.UI
         {
             btnDashboard.Enabled = HasPermission("Dashboard.View");
             btnReports.Enabled = HasPermission("Reports.View");
+            btnConsignments.Enabled = HasPermission("Consignments.Return");
 
             btnUserManagement.Enabled =
                 HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage") ||
                 HasPermission("Permissions.Manage") ||
-                HasPermission("AuditLog.View");
+                HasPermission("AuditLog.View") ||
+                HasPermission("Consignments.Issue") ||
+                HasPermission("Consignments.Return");
 
             btnSettings.Enabled = HasPermission("Settings.Manage");
 
@@ -489,6 +501,7 @@ namespace KKWholesalePOS.UI
             pnlReports.Visible = false;
             pnlUserManagement.Visible = false;
             pnlSettings.Visible = false;
+            pnlConsignments.Visible = false;
 
             // Display selected page
             selectedPanel.Visible = true;
@@ -501,6 +514,7 @@ namespace KKWholesalePOS.UI
             {
                 "Dashboard" => "Welcome to K&K Wholesale POS",
                 "Reports" => "View and generate business reports.",
+                "Consignments" => "Issue consignments, process returns and record settlements.",
                 "User Management" => "Manage system users, roles and permissions.",
                 "Settings" => "Configure your business and system preferences.",
                 _ => string.Empty
@@ -509,6 +523,7 @@ namespace KKWholesalePOS.UI
             // Reset navigation button colours
             btnDashboard.BackColor = _normalButtonColor;
             btnReports.BackColor = _normalButtonColor;
+            btnConsignments.BackColor = _normalButtonColor;
             btnUserManagement.BackColor = _normalButtonColor;
             btnSettings.BackColor = _normalButtonColor;
 
@@ -570,7 +585,7 @@ namespace KKWholesalePOS.UI
                 // Today's sales
                 lblSalesTodayValue.Text =
                     summary.SalesToday.ToString("C");
-                
+
                 lblTransactionsToday.Text =
                     $"{summary.TransactionsToday} transactions";
 
@@ -1786,7 +1801,7 @@ namespace KKWholesalePOS.UI
             };
 
             auditGrid.Columns.Add("Timestamp", "Date & Time");
-            auditGrid.Columns.Add("Username", "Username"); 
+            auditGrid.Columns.Add("Username", "Username");
             auditGrid.Columns.Add("Action", "Action");
             auditGrid.Columns.Add("EntityType", "Entity");
             auditGrid.Columns.Add("EntityId", "Entity ID");
@@ -2674,6 +2689,9 @@ namespace KKWholesalePOS.UI
             {
                 "Dashboard" => HasPermission("Dashboard.View"),
                 "Reports" => HasPermission("Reports.View"),
+                "Consignments" => 
+                    HasPermission("Consignments.Issue") ||
+                    HasPermission("Consignments.Return"),
                 "User Management" =>
                     HasPermission("Users.Manage") ||
                     HasPermission("Roles.Manage") ||
@@ -2996,6 +3014,11 @@ namespace KKWholesalePOS.UI
                 .BorderBottom(1)
                 .BorderColor(Colors.Grey.Lighten2)
                 .Padding(5);
+        }
+
+        private void btnUserManagement_Click_1(object sender, EventArgs e)
+        {
+
         }
     }
 }

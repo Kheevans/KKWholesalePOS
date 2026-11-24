@@ -23,6 +23,7 @@ namespace KKWholesalePOS.UI
             var customerRepository = new CustomerRepository(dbContext);
             var reportingRepository = new ReportingRepository(dbContext);
             var regularSaleRepository = new RegularSaleRepository(dbContext);
+            var consignmentReturnRepository = new ConsignmentReturnRepository(dbContext);
             var dashboardRepository = new DashboardRepository(dbContext);
             var permissionRepository = new PermissionRepository(dbContext);
 
@@ -76,6 +77,11 @@ namespace KKWholesalePOS.UI
                 userSessionService,
                 authorizationService);
 
+            var consignmentReturnService = new ConsignmentReturnService(
+                consignmentReturnRepository,
+                userSessionService,
+                authorizationService);
+
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())
             {
@@ -115,7 +121,8 @@ namespace KKWholesalePOS.UI
                     roleManagementService,
                     permissionManagementService,
                     auditLogService,
-                    authorizationService));
+                    authorizationService,
+                    consignmentReturnService));
             }
         }
     }
