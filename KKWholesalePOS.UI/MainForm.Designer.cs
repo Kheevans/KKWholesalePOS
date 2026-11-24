@@ -47,6 +47,9 @@
             pnlContent = new Panel();
             lblPageTitle = new Label();
             lblWelcome = new Label();
+            pnlConsignments = new Panel();
+            tabConsignments = new TabControl();
+            tabConsignmentReturns = new TabPage();
             pnlReports = new Panel();
             pnlReportFilters = new Panel();
             cmbCustomer = new ComboBox();
@@ -90,6 +93,8 @@
             pnlSidebar.SuspendLayout();
             flpNavigation.SuspendLayout();
             pnlContent.SuspendLayout();
+            pnlConsignments.SuspendLayout();
+            tabConsignments.SuspendLayout();
             pnlReports.SuspendLayout();
             pnlReportFilters.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvReportResults).BeginInit();
@@ -287,6 +292,7 @@
             btnUserManagement.Text = "User Management";
             btnUserManagement.TextAlign = ContentAlignment.MiddleLeft;
             btnUserManagement.UseVisualStyleBackColor = false;
+            btnUserManagement.Click += btnUserManagement_Click_1;
             // 
             // btnSettings
             // 
@@ -321,6 +327,7 @@
             pnlContent.BackColor = Color.FromArgb(243, 244, 246);
             pnlContent.Controls.Add(lblPageTitle);
             pnlContent.Controls.Add(lblWelcome);
+            pnlContent.Controls.Add(pnlConsignments);
             pnlContent.Controls.Add(pnlReports);
             pnlContent.Controls.Add(pnlUserManagement);
             pnlContent.Controls.Add(pnlDashboard);
@@ -354,6 +361,37 @@
             lblWelcome.Size = new Size(299, 28);
             lblWelcome.TabIndex = 9;
             lblWelcome.Text = "Welcome to K&&K Wholesale POS";
+            // 
+            // pnlConsignments
+            // 
+            pnlConsignments.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            pnlConsignments.BackColor = Color.White;
+            pnlConsignments.BorderStyle = BorderStyle.FixedSingle;
+            pnlConsignments.Controls.Add(tabConsignments);
+            pnlConsignments.Location = new Point(20, 110);
+            pnlConsignments.Name = "pnlConsignments";
+            pnlConsignments.Size = new Size(1315, 597);
+            pnlConsignments.TabIndex = 14;
+            pnlConsignments.Visible = false;
+            // 
+            // tabConsignments
+            // 
+            tabConsignments.Controls.Add(tabConsignmentReturns);
+            tabConsignments.Dock = DockStyle.Fill;
+            tabConsignments.Location = new Point(0, 0);
+            tabConsignments.Name = "tabConsignments";
+            tabConsignments.SelectedIndex = 0;
+            tabConsignments.Size = new Size(1313, 595);
+            tabConsignments.TabIndex = 0;
+            // 
+            // tabConsignmentReturns
+            // 
+            tabConsignmentReturns.Location = new Point(4, 34);
+            tabConsignmentReturns.Name = "tabConsignmentReturns";
+            tabConsignmentReturns.Size = new Size(1305, 557);
+            tabConsignmentReturns.TabIndex = 0;
+            tabConsignmentReturns.Text = "Returns && Settlement";
+            tabConsignmentReturns.UseVisualStyleBackColor = true;
             // 
             // pnlReports
             // 
@@ -819,6 +857,8 @@
             flpNavigation.ResumeLayout(false);
             pnlContent.ResumeLayout(false);
             pnlContent.PerformLayout();
+            pnlConsignments.ResumeLayout(false);
+            tabConsignments.ResumeLayout(false);
             pnlReports.ResumeLayout(false);
             pnlReports.PerformLayout();
             pnlReportFilters.ResumeLayout(false);
@@ -869,6 +909,9 @@
         private Panel pnlActiveCustomers;
         private Panel pnlSalesToday;
         private Panel pnlPendingConsignments;
+        private Panel pnlConsignments;
+        private TabControl tabConsignments;
+        private TabPage tabConsignmentReturns;
         private Label lblTotalProductsValue;
         private Label lblTotalProductsTitle;
         private Label lblActiveCustomersValue;
