@@ -4,7 +4,9 @@ namespace KKWholesalePOS.Core.Interfaces;
 
 public interface IConsignmentReturnRepository
 {
-    Consignment? FindConsignmentByReference(string referenceNumber); 
+    Consignment? FindConsignmentByReference(string referenceNumber);
+
+    IReadOnlyList<Consignment> GetConsignmentsByCustomerId(int customerId);
 
     IReadOnlyList<ConsignmentReturn> GetReturns(int consignmentId);
 

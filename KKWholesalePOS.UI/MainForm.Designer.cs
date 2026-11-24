@@ -292,7 +292,7 @@
             btnUserManagement.Text = "User Management";
             btnUserManagement.TextAlign = ContentAlignment.MiddleLeft;
             btnUserManagement.UseVisualStyleBackColor = false;
-            btnUserManagement.Click += btnUserManagement_Click_1;
+            btnUserManagement.Click += btnUserManagement_Click;
             // 
             // btnSettings
             // 

@@ -109,7 +109,8 @@ namespace KKWholesalePOS.UI
             var consignmentReturnService = new ConsignmentReturnService(
                 consignmentReturnRepository,
                 userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())

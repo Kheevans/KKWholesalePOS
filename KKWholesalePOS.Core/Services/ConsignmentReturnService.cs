@@ -14,6 +14,15 @@ public record ConsignmentReturnView(
 public record ReturnRequestLine(
     int ConsignmentLineId, int QuantityReturned, int QuantityAccepted);
 
+public record ConsignmentSummaryItem(
+    int ConsignmentId,
+    string ReferenceNumber,
+    DateTime IssuedAt,
+    decimal FinalBalance,
+    decimal Outstanding,
+    bool IsSettled,
+    string DisplayText);
+
 public class ConsignmentReturnService
 {
     private const string ReturnPermission = "Consignments.Return";
@@ -21,15 +30,18 @@ public class ConsignmentReturnService
     private readonly IConsignmentReturnRepository _repository;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService? _auditLogService;
 
     public ConsignmentReturnService(
         IConsignmentReturnRepository repository,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService? auditLogService = null)
     {
         _repository = repository;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     private int RequirePermission(string permissionName)
@@ -58,6 +70,51 @@ public class ConsignmentReturnService
             _repository.FindConsignmentByReference(referenceNumber.Trim());
 
         return consignment == null ? null : BuildView(consignment);
+    }
+
+    public IReadOnlyList<ConsignmentSummaryItem> GetCustomerConsignments(
+        int customerId,
+        string currencyPrefix = "J$",
+        string dateFormat = "yyyy-MM-dd")
+    {
+        RequirePermission(ReturnPermission);
+
+        if (customerId <= 0)
+            throw new ArgumentException("A valid customer must be selected.");
+
+        var consignments = _repository.GetConsignmentsByCustomerId(customerId);
+        var summaries = new List<ConsignmentSummaryItem>(consignments.Count);
+
+        foreach (var c in consignments)
+        {
+            var view = BuildView(c);
+            var st = view.Settlement;
+            string statusTag = st.IsSettled ? "Settled" : $"Owed: {currencyPrefix}{st.Outstanding:N2}";
+            string display = $"{c.ReferenceNumber} ({c.IssuedAt.ToLocalTime().ToString(dateFormat)}) - {statusTag}";
+
+            summaries.Add(new ConsignmentSummaryItem(
+                c.Id,
+                c.ReferenceNumber,
+                c.IssuedAt,
+                st.FinalBalance,
+                st.Outstanding,
+                st.IsSettled,
+                display));
+        }
+
+        return summaries;
+    }
+
+    public IReadOnlyList<ConsignmentReturn> GetReturnHistory(int consignmentId)
+    {
+        RequirePermission(ReturnPermission);
+        return _repository.GetReturns(consignmentId);
+    }
+
+    public IReadOnlyList<ConsignmentPayment> GetPaymentHistory(int consignmentId)
+    {
+        RequirePermission(ReturnPermission);
+        return _repository.GetPayments(consignmentId);
     }
 
     // SR-04.2, 04.3, 04.4 (stock restore happens inside the repository)
@@ -123,7 +180,7 @@ public class ConsignmentReturnService
                 "Refunds are not supported; speak to the owner.");
         }
 
-        return _repository.SaveReturn(new ConsignmentReturn
+        var savedReturn = _repository.SaveReturn(new ConsignmentReturn
         {
             ConsignmentId = view.Consignment.Id,
             UserId = userId,
@@ -131,6 +188,19 @@ public class ConsignmentReturnService
             ReferenceNumber = "RET-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"),
             Lines = newLines
         });
+
+        int totalAccepted = newLines.Sum(l => l.QuantityAccepted);
+        decimal acceptedValue = newLines.Sum(l => l.AcceptedValue);
+
+        _auditLogService?.LogAction(
+            userId,
+            "Consignment Return",
+            "Consignment",
+            view.Consignment.Id.ToString(),
+            $"Processed return {savedReturn.ReferenceNumber} for {view.Consignment.ReferenceNumber} " +
+            $"({totalAccepted} accepted item(s), value {acceptedValue:N2}).");
+
+        return savedReturn;
     }
 
     // SR-04.5
@@ -149,17 +219,29 @@ public class ConsignmentReturnService
 
         if (amount > view.Settlement.Outstanding)
             throw new InvalidOperationException(
-                $"Payment exceeds the amount owed (J${view.Settlement.Outstanding:N2}).");
+                $"Payment exceeds the amount owed ({view.Settlement.Outstanding:N2}).");
 
-        return _repository.SavePayment(new ConsignmentPayment
+        string method = string.IsNullOrWhiteSpace(paymentMethod)
+            ? "Cash"
+            : paymentMethod.Trim();
+
+        var savedPayment = _repository.SavePayment(new ConsignmentPayment
         {
             ConsignmentId = view.Consignment.Id,
             UserId = userId,
             PaymentDate = DateTime.UtcNow,
             Amount = amount,
-            PaymentMethod = string.IsNullOrWhiteSpace(paymentMethod)
-                ? "Cash" : paymentMethod
+            PaymentMethod = method
         });
+
+        _auditLogService?.LogAction(
+            userId,
+            "Consignment Payment",
+            "Consignment",
+            view.Consignment.Id.ToString(),
+            $"Recorded {method} payment of {amount:N2} for {view.Consignment.ReferenceNumber}.");
+
+        return savedPayment;
     }
 
     private ConsignmentReturnView BuildView(Consignment consignment)

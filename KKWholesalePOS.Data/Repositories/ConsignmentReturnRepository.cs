@@ -25,12 +25,23 @@ public class ConsignmentReturnRepository : IConsignmentReturnRepository
             .FirstOrDefault(c => c.ReferenceNumber == referenceNumber);
     }
 
+    public IReadOnlyList<Consignment> GetConsignmentsByCustomerId(int customerId)
+    {
+        return _dbContext.Consignments
+            .AsNoTracking()
+            .Include(c => c.Lines)
+            .Where(c => c.CustomerId == customerId)
+            .OrderByDescending(c => c.IssuedAt)
+            .ToList();
+    }
+
     public IReadOnlyList<ConsignmentReturn> GetReturns(int consignmentId)
     {
         return _dbContext.ConsignmentReturns
             .AsNoTracking()
             .Include(r => r.Lines)
             .Where(r => r.ConsignmentId == consignmentId)
+            .OrderByDescending(r => r.ReturnDate)
             .ToList();
     }
 
@@ -39,6 +50,7 @@ public class ConsignmentReturnRepository : IConsignmentReturnRepository
         return _dbContext.ConsignmentPayments
             .AsNoTracking()
             .Where(p => p.ConsignmentId == consignmentId)
+            .OrderByDescending(p => p.PaymentDate)
             .ToList();
     }
 
