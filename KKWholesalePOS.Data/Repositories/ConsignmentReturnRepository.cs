@@ -1,5 +1,6 @@
 ﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Consignment;
+using KKWholesalePOS.Core.Services;
 using KKWholesalePOS.Data.Services;
 using Microsoft.EntityFrameworkCore;
 using Consignment = KKWholesalePOS.Core.Models.Consignment.Consignment;
@@ -96,8 +97,58 @@ public class ConsignmentReturnRepository : IConsignmentReturnRepository
 
     public ConsignmentPayment SavePayment(ConsignmentPayment payment)
     {
-        _dbContext.ConsignmentPayments.Add(payment);
-        _dbContext.SaveChanges();
-        return payment;
+        if (payment == null)
+            throw new ArgumentNullException(nameof(payment));
+
+        decimal amount = Math.Round(payment.Amount, 2, MidpointRounding.AwayFromZero);
+
+        if (amount <= 0m)
+            throw new ArgumentException("Payment must be greater than zero.", nameof(payment));
+
+        using var transaction = _dbContext.Database.BeginTransaction();
+
+        try
+        {
+            var consignment = _dbContext.Consignments
+                .AsNoTracking()
+                .Include(c => c.Lines)
+                .FirstOrDefault(c => c.Id == payment.ConsignmentId)
+                ?? throw new InvalidOperationException("Consignment not found.");
+
+            decimal acceptedReturnsValue = _dbContext.ConsignmentReturns
+                .AsNoTracking()
+                .Where(r => r.ConsignmentId == payment.ConsignmentId)
+                .SelectMany(r => r.Lines)
+                .Sum(l => l.QuantityAccepted * l.UnitPrice);
+
+            decimal totalPaid = _dbContext.ConsignmentPayments
+                .AsNoTracking()
+                .Where(p => p.ConsignmentId == payment.ConsignmentId)
+                .Sum(p => p.Amount);
+
+            var settlement = ConsignmentSettlementCalculator.Calculate(
+                consignment.OriginalGoodsValue,
+                acceptedReturnsValue,
+                totalPaid);
+
+            if (settlement.IsSettled || amount > settlement.Outstanding)
+            {
+                throw new InvalidOperationException(
+                    $"Payment exceeds the amount owed ({settlement.Outstanding:N2}).");
+            }
+
+            payment.Amount = amount;
+            _dbContext.ConsignmentPayments.Add(payment);
+            _dbContext.SaveChanges();
+            transaction.Commit();
+
+            return payment;
+        }
+        catch
+        {
+            transaction.Rollback();
+            _dbContext.ChangeTracker.Clear();
+            throw;
+        }
     }
 }

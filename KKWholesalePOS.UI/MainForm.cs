@@ -1567,13 +1567,14 @@ namespace KKWholesalePOS.UI
 
                 var st = view.Settlement;
                 bool hasOutstandingGoods = view.Lines.Any(l => l.Outstanding > 0);
+                bool canPay = !st.IsSettled && st.Outstanding > 0m;
 
                 _btnViewConsignmentHistory.Enabled = true;
                 _btnProcessReturn.Enabled = !st.IsSettled && hasOutstandingGoods;
-                _btnRecordConsignmentPayment.Enabled = !st.IsSettled && st.Outstanding > 0m;
-                _nudConsignmentPayment.Enabled = !st.IsSettled && st.Outstanding > 0m;
-                _nudConsignmentPayment.Maximum = st.Outstanding > 0m ? st.Outstanding : 100000000m;
+                _btnRecordConsignmentPayment.Enabled = canPay;
+                _nudConsignmentPayment.Enabled = canPay;
                 _nudConsignmentPayment.Value = 0m;
+                _nudConsignmentPayment.Maximum = canPay ? st.Outstanding : 0.01m;
 
                 _lblConsignmentStatus.Text = st.IsSettled
                     ? "STATUS: SETTLED"
@@ -1684,9 +1685,63 @@ namespace KKWholesalePOS.UI
             try
             {
                 string reference = _currentConsignmentView.Consignment.ReferenceNumber;
+                var refreshedView = _consignmentReturnService.FindConsignment(reference)
+                    ?? throw new InvalidOperationException("Consignment not found.");
+                _currentConsignmentView = refreshedView;
+
+                decimal outstanding = Math.Round(
+                    refreshedView.Settlement.Outstanding, 2, MidpointRounding.AwayFromZero);
+
+                if (refreshedView.Settlement.IsSettled || outstanding <= 0m)
+                {
+                    MessageBox.Show("This consignment is already settled.", "Payment",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadConsignmentForReturn(reference);
+                    return;
+                }
+
+                // Read typed text directly in case user clicked Record Payment without pressing Enter/leaving box
+                var innerTextBox = _nudConsignmentPayment.Controls.OfType<TextBox>().FirstOrDefault();
+                decimal enteredAmount = _nudConsignmentPayment.Value;
+
+                if (innerTextBox != null &&
+                    decimal.TryParse(
+                        innerTextBox.Text,
+                        System.Globalization.NumberStyles.Currency,
+                        System.Globalization.CultureInfo.CurrentCulture,
+                        out decimal typedValue))
+                {
+                    enteredAmount = typedValue;
+                }
+
+                enteredAmount = Math.Round(enteredAmount, 2, MidpointRounding.AwayFromZero);
+
+                if (enteredAmount <= 0m)
+                {
+                    MessageBox.Show("Enter a payment amount greater than zero.", "Payment",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                if (enteredAmount > outstanding)
+                {
+                    _nudConsignmentPayment.Value = Math.Min(outstanding, _nudConsignmentPayment.Maximum);
+                    if (innerTextBox != null)
+                        innerTextBox.Text = outstanding.ToString("N2");
+
+                    MessageBox.Show(
+                        $"Payment cannot exceed the outstanding balance ({GetCurrencyPrefix()}{outstanding:N2}).",
+                        "Payment Exceeds Balance",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _nudConsignmentPayment.Value = enteredAmount;
+
                 _consignmentReturnService.RecordPayment(
                     reference,
-                    _nudConsignmentPayment.Value,
+                    enteredAmount,
                     _cmbConsignmentPaymentMethod.SelectedItem?.ToString() ?? "Cash");
 
                 MessageBox.Show("Payment recorded.", "Payment",
@@ -1694,6 +1749,11 @@ namespace KKWholesalePOS.UI
 
                 _nudConsignmentPayment.Value = 0m;
                 LoadConsignmentForReturn(reference);
+
+                if (_cmbConsignmentCustomer.SelectedValue is int customerId && customerId > 0)
+                {
+                    LoadCustomerConsignmentOptions(customerId);
+                }
             }
             catch (Exception ex)
             {
