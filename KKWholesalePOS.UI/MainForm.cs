@@ -32,6 +32,7 @@ namespace KKWholesalePOS.UI
         private readonly PermissionManagementService _permissionManagementService;
         private readonly AuditLogService _auditLogService;
         private readonly AuthorizationService _authorizationService;
+        private readonly BusinessSettingsService _businessSettingsService;
         private readonly ConsignmentReturnService _consignmentReturnService;
         private readonly BusinessSettingsService _businessSettingsService;
         private Label lblOutstandingCreditValue = null!;
@@ -95,6 +96,7 @@ namespace KKWholesalePOS.UI
             PermissionManagementService permissionManagementService,
             AuditLogService auditLogService,
             AuthorizationService authorizationService,
+            BusinessSettingsService businessSettingsService,
             ConsignmentReturnService consignmentReturnService)
             BusinessSettingsService businessSettingsService)
         {
@@ -128,8 +130,13 @@ namespace KKWholesalePOS.UI
             _permissionManagementService = permissionManagementService;
             _auditLogService = auditLogService;
             _authorizationService = authorizationService;
+            _businessSettingsService = businessSettingsService;
             _consignmentReturnService = consignmentReturnService;
             _businessSettingsService = businessSettingsService;
+
+            tabConsignmentReturns.Controls.Add(
+                new ConsignmentReturnsControl(_consignmentReturnService)
+                { Dock = DockStyle.Fill });
 
             if (HasPermission("Users.Manage") ||
                 HasPermission("Roles.Manage"))
