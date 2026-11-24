@@ -167,7 +167,8 @@ namespace KKWholesalePOS.UI
             AuthorizationService authorizationService,
             BusinessSettingsService businessSettingsService,
             CreditService creditService,
-            ConsignmentReturnService consignmentReturnService)
+            ConsignmentReturnService consignmentReturnService,
+            InventoryManagementService inventoryManagementService)
         {
             InitializeComponent();
 
@@ -185,6 +186,7 @@ namespace KKWholesalePOS.UI
             _businessSettingsService = businessSettingsService;
             _creditService = creditService;
             _consignmentReturnService = consignmentReturnService;
+            _inventoryManagementService = inventoryManagementService;
 
             this.FormClosing += MainForm_FormClosing;
 
@@ -260,6 +262,7 @@ namespace KKWholesalePOS.UI
             }
             LoadCustomers();
             ConfigureReportFilters();
+            ConfigureInventoryLayout();
             ApplyNavigationPermissions();
 
             cmbReportType.SelectedIndexChanged += cmbReportType_SelectedIndexChanged;
@@ -2097,8 +2100,18 @@ namespace KKWholesalePOS.UI
                 ? _normalButtonColor
                 : Color.Gray;
 
+            btnProducts.Enabled = HasPermission("Inventory.View");
+
             ApplyManagementTabPermissions();
             ApplyManagementActionPermissions();
+
+            if (!HasPermission("Inventory.View"))
+            {
+                ClearInventory();
+                pnlInventory.Visible = false;
+            }
+
+            ApplyInventoryPermissions();
         }
 
         private void ShowPage(
@@ -2151,6 +2164,7 @@ namespace KKWholesalePOS.UI
             pnlUserManagement.Visible = false;
             pnlSettings.Visible = false;
             _pnlCreditManagement.Visible = false;
+            pnlInventory.Visible = false;
 
             // Display selected page
             selectedPanel.Visible = true;
@@ -2167,6 +2181,7 @@ namespace KKWholesalePOS.UI
                 "User Management" => "Manage system users, roles and permissions.",
                 "Credit Management" => "Manage customer credit accounts and payments.",
                 "Settings" => "Configure your business and system preferences.",
+                "Inventory Management" => "View products, monitor stock levels and manage inventory.",
                 _ => string.Empty
             };
 
@@ -2179,6 +2194,7 @@ namespace KKWholesalePOS.UI
                 ? _normalButtonColor
                 : Color.Gray;
             btnSettings.BackColor = _normalButtonColor;
+            btnProducts.BackColor = _normalButtonColor;
 
             // Highlight selected navigation button
             selectedButton.BackColor = _selectedButtonColor;
@@ -2210,6 +2226,11 @@ namespace KKWholesalePOS.UI
             else if (CanAccessPage("Credit Management"))
             {
                 ShowPage(_pnlCreditManagement, "Credit Management", _btnCreditManagement);
+            }
+            else if (CanAccessPage("Inventory Management"))
+            {
+                ShowPage(pnlInventory, "Inventory Management", btnProducts);
+                LoadInventory();
             }
             else
             {
@@ -5003,6 +5024,7 @@ namespace KKWholesalePOS.UI
                     HasPermission("AuditLog.View"),
                 "Credit Management" => HasPermission("Credit.Manage"),
                 "Settings" => HasPermission("Settings.Manage"),
+                "Inventory Management" => HasPermission("Inventory.View"),
                 _ => false
             };
         }

@@ -154,7 +154,8 @@ namespace KKWholesalePOS.UI
                     authorizationService,
                     businessSettingsService,
                     creditService,
-                    consignmentReturnService));
+                    consignmentReturnService,
+                    inventoryManagementService));
             }
         }
     }

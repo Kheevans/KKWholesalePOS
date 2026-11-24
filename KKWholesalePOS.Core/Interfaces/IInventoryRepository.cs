@@ -16,7 +16,11 @@ public interface IInventoryRepository
 
     List<Product> GetNegativeStockProducts();
 
+    List<InventoryRow> GetInventory(string searchTerm);
+
     List<StockMovement> GetStockMovements(int? productId = null);
+
+    List<StockMovementRow> GetStockMovementHistory(int productId);
 
     void UpdateMinimumStockLevel(int productId, int minimumStockLevel);
 
