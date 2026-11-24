@@ -1,0 +1,34 @@
+﻿using KKWholesalePOS.Core.Models.Inventory;
+
+namespace KKWholesalePOS.Core.Interfaces;
+
+public interface IInventoryRepository
+{
+    List<Product> GetAllProducts();
+
+    Product? GetProductById(int productId);
+
+    Product? GetProductByBarcode(string barcode);
+
+    List<Product> SearchProducts(string query);
+
+    List<Product> GetLowStockProducts();
+
+    List<Product> GetNegativeStockProducts();
+
+    List<StockMovement> GetStockMovements(int? productId = null);
+
+    void UpdateMinimumStockLevel(int productId, int minimumStockLevel);
+
+    Task ReceiveStockAsync(
+        int productId,
+        int quantity,
+        int userId,
+        string? notes = null);
+
+    Task AdjustStockAsync(
+        int productId,
+        int quantityChange,
+        int userId,
+        string notes);
+}

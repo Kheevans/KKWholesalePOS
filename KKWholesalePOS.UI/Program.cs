@@ -29,40 +29,46 @@ namespace KKWholesalePOS.UI
             var businessSettingsRepository = new BusinessSettingsRepository(dbContext);
             var inventoryService = new InventoryService(dbContext);
             var creditRepository = new CreditRepository(dbContext, inventoryService);
+            var inventoryRepository = new InventoryRepository(dbContext, inventoryService);
 
-
-            // Core services
+            // Core services (Foundation)
             var passwordService = new PasswordService();
             var authorizationService = new AuthorizationService();
             var userSessionService = new UserSessionService();
 
+            // Must be created BEFORE the services below so it can be passed into them
+            var auditLogService = new AuditLogService(
+                auditLogRepository,
+                userSessionService,
+                authorizationService);
+
+            // Core services (Feature & Admin Services)
             var businessSettingsService = new BusinessSettingsService(
                 businessSettingsRepository,
                 userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             var permissionManagementService = new PermissionManagementService(
                 permissionRepository,
                 roleRepository,
                 userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             var userManagementService = new UserManagementService(
                 userRepository,
                 passwordService,
                 userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             var roleManagementService = new RoleManagementService(
                 roleRepository,
                 userRepository,
                 userSessionService,
-                authorizationService);
-
-            var auditLogService = new AuditLogService(
-                auditLogRepository,
-                userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             var reportingService = new ReportingService(
                 reportingRepository,
@@ -84,11 +90,20 @@ namespace KKWholesalePOS.UI
             var regularSaleService = new RegularSaleService(
                 regularSaleRepository,
                 userSessionService,
-                authorizationService);
+                authorizationService,
+                auditLogService);
 
             var creditService = new CreditService(
                 creditRepository,
-                auditLogRepository);
+                userSessionService,
+                authorizationService,
+                auditLogService);
+
+            var inventoryManagementService = new InventoryManagementService(
+                inventoryRepository,
+                userSessionService,
+                authorizationService,
+                auditLogService);
 
             // Initial administrator setup
             if (!userRepository.HasAnyUsers())

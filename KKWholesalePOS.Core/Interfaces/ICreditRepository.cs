@@ -1,4 +1,3 @@
-
 using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Core.Models.Inventory;
 using KKWholesalePOS.Core.Models.Others;
@@ -8,9 +7,11 @@ namespace KKWholesalePOS.Core.Interfaces;
 public interface ICreditRepository
 {
     CreditSale? GetById(int creditSaleId);
-//created for use in creditrepository
+
     Product? GetProductById(int productId);
+
     User? GetUserWithRoles(int userId);
+
     CreditPayment? GetPaymentById(int paymentId);
 
     // Retrieve all credit sales belonging to a customer.
@@ -30,11 +31,15 @@ public interface ICreditRepository
 
     void AddPayment(CreditPayment payment);
 
+    // Atomically recheck the balance and record a payment.
+    void AddPaymentWithinBalance(CreditPayment payment);
+
     // Update a recorded payment.
     void UpdatePayment(CreditPayment payment);
 
     // Save database changes.
     void SaveChanges();
 
+    // Create the credit sale and deduct its stock in one transaction.
     void CreateCreditSaleWithStock(CreditSale creditSale, int userId);
 }

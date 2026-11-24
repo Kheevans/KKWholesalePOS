@@ -238,19 +238,25 @@ public class PermissionManagementServiceTests
     }
 
     private static PermissionManagementService CreateService(
-        out FakePermissionRepository permissionRepository,
-        out FakeRoleRepository roleRepository)
+            out FakePermissionRepository permissionRepository,
+            out FakeRoleRepository roleRepository)
     {
         permissionRepository = new FakePermissionRepository();
         roleRepository = new FakeRoleRepository();
 
         var userSession = new UserSessionService();
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            userSession,
+            authService);
 
         return new PermissionManagementService(
             permissionRepository,
             roleRepository,
             userSession,
-            new AuthorizationService());
+            authService,
+            auditService);
     }
 
     private static PermissionManagementService CreateAuthorizedService(
@@ -288,11 +294,18 @@ public class PermissionManagementServiceTests
 
         userSession.StartSession(user);
 
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            userSession,
+            authService);
+
         return new PermissionManagementService(
             permissionRepository,
             roleRepository,
             userSession,
-            new AuthorizationService());
+            authService,
+            auditService);
     }
 
     private class FakePermissionRepository : IPermissionRepository

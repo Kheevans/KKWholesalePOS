@@ -1,6 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -11,20 +9,25 @@ public class PermissionManagementService
     private readonly IRoleRepository _roleRepository;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService _auditLogService;
+
     internal List<Permission> GetAllPermissionsForInitialSetup()
     {
         return _permissionRepository.GetAll();
     }
+
     public PermissionManagementService(
         IPermissionRepository permissionRepository,
         IRoleRepository roleRepository,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService auditLogService)
     {
         _permissionRepository = permissionRepository;
         _roleRepository = roleRepository;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     private void RequirePermission(string permissionName)
@@ -44,7 +47,16 @@ public class PermissionManagementService
     public Permission CreatePermission(string name, string description)
     {
         RequirePermission("Permissions.Manage");
-        return CreatePermissionCore(name, description);
+        var permission = CreatePermissionCore(name, description);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "PermissionCreated",
+            "Permission",
+            permission.Id.ToString(),
+            $"Created permission '{permission.Name}'.");
+
+        return permission;
     }
 
     internal Permission CreateInitialPermission(string name, string description)
@@ -85,6 +97,13 @@ public class PermissionManagementService
     {
         RequirePermission("Permissions.Manage");
         AssignPermissionToRoleCore(roleId, permissionId);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "PermissionAssigned",
+            "RolePermission",
+            $"{roleId}:{permissionId}",
+            $"Assigned permission ID {permissionId} to role ID {roleId}.");
     }
 
     internal void AssignInitialPermissionToRole(int roleId, int permissionId)
@@ -152,6 +171,13 @@ public class PermissionManagementService
 
         _roleRepository.Update(role);
         _roleRepository.SaveChanges();
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "PermissionRemoved",
+            "RolePermission",
+            $"{roleId}:{permissionId}",
+            $"Removed permission ID {permissionId} from role ID {roleId}.");
     }
 
     public List<Permission> GetRolePermissions(int roleId)

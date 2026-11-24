@@ -156,10 +156,10 @@ public class InventoryService
                 quantityChange > 0 &&
                 consignmentReturnId.HasValue &&
                 sourceCount == 1,
-            
+
             //newly added
-            CreditSale => 
-                quantityChange >0 &&
+            CreditSale =>
+                quantityChange < 0 &&
                 sourceCount == 0,
 
             _ => false

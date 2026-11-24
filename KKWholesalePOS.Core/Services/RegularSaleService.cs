@@ -19,15 +19,18 @@ public class RegularSaleService
     private readonly IRegularSaleRepository _repository;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService _auditLogService;
 
     public RegularSaleService(
         IRegularSaleRepository repository,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService auditLogService)
     {
         _repository = repository;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     private void RequirePermission(string permissionName)
@@ -83,8 +86,17 @@ public class RegularSaleService
                 "Cash received must be greater than zero.");
         }
 
-        return _repository.SaveCashSale(
+        var sale = _repository.SaveCashSale(
             items, cashReceived, cashierId, cashierName);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id ?? cashierId,
+            "RegularSaleCompleted",
+            "RegularSale",
+            sale.Id.ToString(),
+            $"Cash sale completed. Total: J${sale.Total:N2}, Cash: J${cashReceived:N2}, Change: J${sale.ChangeDue:N2}.");
+
+        return sale;
     }
 
     public RegularSale CompleteCardSale(
@@ -114,13 +126,17 @@ public class RegularSaleService
                 "Card last four digits must contain exactly four digits.");
         }
 
-        return _repository.SaveCardSale(
-            items,
-            cardType,
-            cardLastFour,
-            approvalCode,
-            cashierId,
-            cashierName);
+        var sale = _repository.SaveCardSale(
+            items, cardType, cardLastFour, approvalCode, cashierId, cashierName);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id ?? cashierId,
+            "RegularSaleCompleted",
+            "RegularSale",
+            sale.Id.ToString(),
+            $"Card sale ({cardType} ****{cardLastFour}) completed. Total: J${sale.Total:N2}, Approval: {approvalCode}.");
+
+        return sale;
     }
 
     private static void ValidateSale(

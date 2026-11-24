@@ -203,22 +203,30 @@ public class RoleManagementServiceTests
     }
 
     private static RoleManagementService CreateService(
-        out FakeRoleRepository roleRepository,
-        out FakeUserRepository userRepository)
+            out FakeRoleRepository roleRepository,
+            out FakeUserRepository userRepository)
     {
         roleRepository = new FakeRoleRepository();
         userRepository = new FakeUserRepository();
 
+        var session = new UserSessionService();
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            session,
+            authService);
+
         return new RoleManagementService(
             roleRepository,
             userRepository,
-            new UserSessionService(),
-            new AuthorizationService());
+            session,
+            authService,
+            auditService);
     }
 
     private static RoleManagementService CreateAuthorizedService(
-        FakeRoleRepository roleRepository,
-        FakeUserRepository userRepository)
+            FakeRoleRepository roleRepository,
+            FakeUserRepository userRepository)
     {
         var userSession = new UserSessionService();
 
@@ -251,11 +259,18 @@ public class RoleManagementServiceTests
 
         userSession.StartSession(user);
 
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            userSession,
+            authService);
+
         return new RoleManagementService(
             roleRepository,
             userRepository,
             userSession,
-            new AuthorizationService());
+            authService,
+            auditService);
     }
 
     private static RoleManagementService CreateAuthorizedService(

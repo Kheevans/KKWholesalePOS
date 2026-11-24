@@ -11,25 +11,39 @@ public class UserManagementServiceTests
     private readonly PasswordService _passwordService = new();
 
     private UserManagementService CreateService(
-        FakeUserRepository repository)
+            FakeUserRepository repository)
     {
         var userSession = CreateAuthorizedSession("Users.Manage");
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            userSession,
+            authService);
 
         return new UserManagementService(
             repository,
             _passwordService,
             userSession,
-            new AuthorizationService());
+            authService,
+            auditService);
     }
 
     private UserManagementService CreateUnauthorizedService(
         FakeUserRepository repository)
     {
+        var userSession = new UserSessionService();
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            new Moq.Mock<IAuditLogRepository>().Object,
+            userSession,
+            authService);
+
         return new UserManagementService(
             repository,
             _passwordService,
-            new UserSessionService(),
-            new AuthorizationService());
+            userSession,
+            authService,
+            auditService);
     }
 
     private static UserSessionService CreateAuthorizedSession(

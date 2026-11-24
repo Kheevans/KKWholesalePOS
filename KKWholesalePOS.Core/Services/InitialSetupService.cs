@@ -61,24 +61,25 @@ public class InitialSetupService
     public void EnsureDefaultPermissions()
     {
         var defaultPermissions = new Dictionary<string, string>
-    {
-        { "Dashboard.View", "Access the business dashboard." },
-        { "Sales.Process", "Process regular sales." },
-        { "Customers.Manage", "Create and manage customers." },
-        { "Credit.Manage", "Manage credit accounts and payments." },
-        { "Consignments.Issue", "Issue consignment goods." },
-        { "Consignments.Return", "Process consignment returns." },
-        { "Inventory.View", "View inventory and stock information." },
-        { "Inventory.Receive", "Record received stock." },
-        { "Inventory.Adjust", "Adjust stock quantities." },
-        { "Reports.View", "View business reports." },
-        { "Reports.Export", "Export business reports." },
-        { "Users.Manage", "Create and manage user accounts." },
-        { "Roles.Manage", "Create and manage system roles." },
-        { "Permissions.Manage", "Assign and remove role permissions." },
-        { "AuditLog.View", "View system activity and audit records." },
-        { "Settings.Manage", "Manage business and system settings." }
-    };
+        {
+            { "Dashboard.View", "Access the business dashboard." },
+            { "Sales.Process", "Process regular sales." },
+            { "Customers.Manage", "Create and manage customers." },
+            { "Credit.Manage", "Manage credit accounts and payments." },
+            { "Credit.Modify", "Modify existing credit balances and payments." },
+            { "Consignments.Issue", "Issue consignment goods." },
+            { "Consignments.Return", "Process consignment returns." },
+            { "Inventory.View", "View inventory and stock information." },
+            { "Inventory.Receive", "Record received stock." },
+            { "Inventory.Adjust", "Adjust stock quantities." },
+            { "Reports.View", "View business reports." },
+            { "Reports.Export", "Export business reports." },
+            { "Users.Manage", "Create and manage user accounts." },
+            { "Roles.Manage", "Create and manage system roles." },
+            { "Permissions.Manage", "Assign and remove role permissions." },
+            { "AuditLog.View", "View system activity and audit records." },
+            { "Settings.Manage", "Manage business and system settings." }
+        };
 
         var existingPermissions =
             _permissionManagementService.GetAllPermissionsForInitialSetup();

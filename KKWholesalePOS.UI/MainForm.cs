@@ -1,17 +1,17 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models.Reports;
-using KKWholesalePOS.Core.Services;
-using System.Drawing.Printing;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using System.Drawing;
+using KKWholesalePOS.Core.Interfaces;
+using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Core.Models.Others;
+using KKWholesalePOS.Core.Models.Reports;
+using KKWholesalePOS.Core.Services;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System.Drawing;
+using System.Drawing.Printing;
 using Color = System.Drawing.Color;
 using Font = System.Drawing.Font;
 
@@ -19,13 +19,14 @@ namespace KKWholesalePOS.UI
 {
     public partial class MainForm : Form
     {
+        // ==========================================
+        // Services and Dependencies
+        // ==========================================
         private readonly UserSessionService _userSession;
         private readonly LoginService _loginService;
         private readonly ICustomerRepository _customerRepository;
         private readonly ReportingService _reportingService;
         private readonly RegularSaleService _regularSaleService;
-        private readonly System.Drawing.Color _normalButtonColor =
-            System.Drawing.Color.FromArgb(31, 41, 55);
         private readonly DashboardService _dashboardService;
         private readonly UserManagementService _userManagementService;
         private readonly RoleManagementService _roleManagementService;
@@ -34,58 +35,82 @@ namespace KKWholesalePOS.UI
         private readonly AuthorizationService _authorizationService;
         private readonly BusinessSettingsService _businessSettingsService;
         private readonly CreditService _creditService;
-        // Credit Management controls
-        private Button _btnCreditManagement = null!;
-        private Panel _pnlCreditManagement = null!;
-        private TextBox _txtCreditCustomerSearch = null!;
-        private DataGridView _creditAccountsGrid = null!;
-
+        // ==========================================
+        // Shared UI Styling
+        // ==========================================
+        private readonly System.Drawing.Color _normalButtonColor =
+            System.Drawing.Color.FromArgb(31, 41, 55);
+        private readonly System.Drawing.Color _selectedButtonColor =
+            System.Drawing.Color.FromArgb(59, 130, 246);
+        // ==========================================
+        // Dashboard Controls
+        // ==========================================
         private Label lblOutstandingCreditValue = null!;
         private Label lblOutstandingConsignmentValue = null!;
         private Label lblLowStockValue = null!;
         private Label lblOverdueCreditValue = null!;
         private Label lblTransactionsToday = null!;
         private Label lblOutOfStockValue = null!;
-        private DataGridView _usersGrid = null!;
-        private DataGridView _rolesGrid = null!;
-        private DataGridView _permissionsGrid = null!;
-        private DataGridView _auditLogGrid = null!;
-        private Label _permissionCountLabel = null!;
+        // ==========================================
+        // Credit Management Controls
+        // ==========================================
+        private Button _btnCreditManagement = null!;
+        private Button _btnSearchCreditAccounts = null!;
+        private Button _btnViewCreditPayments = null!;
+        private Button _btnRecordCreditPayment = null!;
+        private Panel _pnlCreditManagement = null!;
+        private ComboBox _cmbCreditCustomer = null!;
+        private DataGridView _creditAccountsGrid = null!;
+        // ==========================================
+        // User Management Controls
+        // ==========================================
         private TabControl _userManagementTabControl = null!;
         private TabPage _usersTab = null!;
         private TabPage _rolesTab = null!;
         private TabPage _permissionsTab = null!;
         private TabPage _auditLogTab = null!;
+        private DataGridView _usersGrid = null!;
+        private DataGridView _rolesGrid = null!;
+        private DataGridView _permissionsGrid = null!;
+        private DataGridView _auditLogGrid = null!;
+        private Label _permissionCountLabel = null!;
         private Button _createUserButton = null!;
         private Button _activateUserButton = null!;
         private Button _deactivateUserButton = null!;
+        private Button _createRoleButton = null!;
         private Button _assignRoleButton = null!;
         private Button _removeRoleButton = null!;
-        private Button _createRoleButton = null!;
         private Button _assignPermissionButton = null!;
         private Button _removePermissionButton = null!;
-    
-        // Business information
+        // ==========================================
+        // Business Information Settings
+        // ==========================================
         private TextBox txtBusinessName = null!;
         private TextBox txtBusinessAddress = null!;
         private TextBox txtPhoneNumber = null!;
         private TextBox txtEmailAddress = null!;
-
-        // Receipt settings
+        // ==========================================
+        // Receipt Settings
+        // ==========================================
         private TextBox txtReceiptHeader = null!;
         private TextBox txtReceiptFooter = null!;
         private System.Windows.Forms.CheckBox chkShowBusinessContactDetails = null!;
-        // System preferences
+        // ==========================================
+        // System Preferences
+        // ==========================================
         private ComboBox cmbCurrencyCode = null!;
         private ComboBox cmbDateFormat = null!;
-
-        // Inventory preferences
+        // ==========================================
+        // Inventory Preferences
+        // ==========================================
         private NumericUpDown nudDefaultMinimumStockLevel = null!;
-
-        // Settings action
+        // ==========================================
+        // Settings Actions
+        // ==========================================
         private Button btnSaveSettings = null!;
-        private readonly System.Drawing.Color _selectedButtonColor =
-            System.Drawing.Color.FromArgb(59, 130, 246);
+        // ==========================================
+        // Reporting
+        // ==========================================
         private readonly PrintDocument _reportPrintDocument = new();
         private int _printRowIndex;
         private string _currentReportName = "Report";
@@ -113,11 +138,22 @@ namespace KKWholesalePOS.UI
             ConfigureUserManagementLayout();
             ConfigureCreditManagementLayout();
             ConfigureSettingsLayout();
-            
+
 
             btnExportPdf.Click += btnExportPdf_Click;
             btnExportExcel.Click += btnExportExcel_Click;
             btnExportWord.Click += btnExportWord_Click;
+            _btnSearchCreditAccounts.Click += btnSearchCreditAccounts_Click;
+            _btnViewCreditPayments.Click += btnViewCreditPayments_Click;
+            _btnRecordCreditPayment.Click += btnRecordCreditPayment_Click;
+
+            _cmbCreditCustomer.SelectedIndexChanged += (sender, e) =>
+            {
+                if (_cmbCreditCustomer.SelectedValue is int customerId && customerId > 0)
+                {
+                    LoadCustomerCreditAccounts(customerId);
+                }
+            };
 
             btnExportPdf.Enabled = false;
             btnExportExcel.Enabled = false;
@@ -125,7 +161,7 @@ namespace KKWholesalePOS.UI
             _reportPrintDocument.PrintPage += ReportPrintDocument_PrintPage;
 
             btnPrintReport.Click += btnPrintReport_Click;
-            
+
             _reportingService = reportingService;
             _dashboardService = dashboardService;
             _userSession = userSession;
@@ -166,6 +202,7 @@ namespace KKWholesalePOS.UI
             ApplyNavigationPermissions();
 
             cmbReportType.SelectedIndexChanged += cmbReportType_SelectedIndexChanged;
+            cmbCustomer.SelectedIndexChanged += (sender, e) => DisableReportExports();
 
             dtpStartDate.ValueChanged += dtpStartDate_ValueChanged;
             dtpEndDate.ValueChanged += dtpEndDate_ValueChanged;
@@ -549,16 +586,20 @@ namespace KKWholesalePOS.UI
             cmbReportType.SelectedIndex = 0;
 
             dtpStartDate.Value = new DateTime(
-                DateTime.Today.Year,
-                DateTime.Today.Month,
-                1);
+                            DateTime.Today.Year,
+                            DateTime.Today.Month,
+                            1);
 
             dtpEndDate.Value = DateTime.Today;
 
-            dtpStartDate.MaxDate = DateTime.Today;
-            dtpEndDate.MaxDate = DateTime.Today;
-
             btnGenerateReport.Click += btnGenerateReport_Click;
+        }
+
+        private void DisableReportExports()
+        {
+            btnExportPdf.Enabled = false;
+            btnExportExcel.Enabled = false;
+            btnExportWord.Enabled = false;
         }
 
         private void LoadUsers()
@@ -586,16 +627,18 @@ namespace KKWholesalePOS.UI
         private void cmbReportType_SelectedIndexChanged(
             object sender, EventArgs e)
         {
-            btnExportPdf.Enabled = false;
-            btnExportExcel.Enabled = false;
-            btnExportWord.Enabled = false;
+            DisableReportExports();
 
             bool requiresCustomer =
                 cmbReportType.SelectedIndex == 1 ||
                 cmbReportType.SelectedIndex == 2;
 
+            bool usesDateRange = cmbReportType.SelectedIndex != 3;
+
             lblCustomer.Visible = requiresCustomer;
             cmbCustomer.Visible = requiresCustomer;
+            dtpStartDate.Enabled = usesDateRange;
+            dtpEndDate.Enabled = usesDateRange;
 
             if (!requiresCustomer)
             {
@@ -660,9 +703,12 @@ namespace KKWholesalePOS.UI
             tsslDateTime.Text =
                 DateTime.Now.ToString("dd MMM yyyy");
         }
-        
+
+
+
         private void ConfigureCreditManagementLayout()
         {
+            // Navigation button
             _btnCreditManagement = new Button
             {
                 Text = "Credit Management",
@@ -676,9 +722,465 @@ namespace KKWholesalePOS.UI
                 Cursor = Cursors.Hand,
                 Visible = false
             };
-            _btnCreditManagement.FlatAppearance.BorderSize = 0;
+
+            _btnCreditManagement.FlatAppearance.BorderSize = 1;
+            _btnCreditManagement.FlatAppearance.BorderColor = Color.White;
+
             flpNavigation.Controls.Add(_btnCreditManagement);
             flpNavigation.Controls.SetChildIndex(_btnCreditManagement, 2);
+
+            // Main Credit Management page
+            _pnlCreditManagement = new Panel
+            {
+                Name = "pnlCreditManagement",
+                Anchor = AnchorStyles.Top |
+                         AnchorStyles.Bottom |
+                         AnchorStyles.Left |
+                         AnchorStyles.Right,
+                BackColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle,
+                Location = new Point(20, 110),
+                Size = new System.Drawing.Size(1315, 597),
+                Visible = false
+            };
+
+            // Add page to the same container as the other pages
+            pnlContent.Controls.Add(_pnlCreditManagement);
+
+            // Main layout
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(20),
+                BackColor = Color.White
+            };
+
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 65F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 65F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+            // Heading
+            var headingLabel = new Label
+            {
+                Text = "Customer Credit Accounts",
+                Font = new Font("Segoe UI", 18F, FontStyle.Bold),
+                AutoSize = true,
+                Location = new Point(5, 5)
+            };
+
+            var headingPanel = new Panel
+            {
+                Dock = DockStyle.Fill
+            };
+
+            headingPanel.Controls.Add(headingLabel);
+
+            // Customer search panel
+            var searchPanel = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = false,
+                AutoScroll = true,
+                Padding = new Padding(0, 8, 0, 0)
+            };
+
+            var searchLabel = new Label
+            {
+                Text = "Customer:",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10F),
+                Margin = new Padding(3, 8, 8, 3)
+            };
+
+            _cmbCreditCustomer = new ComboBox
+            {
+                Name = "cmbCreditCustomer",
+                DropDownStyle = ComboBoxStyle.DropDown,
+                AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+                AutoCompleteSource = AutoCompleteSource.ListItems,
+                Width = 260,
+                Font = new Font("Segoe UI", 10F),
+                Margin = new Padding(3, 3, 10, 3)
+            };
+
+            _btnSearchCreditAccounts = new Button
+            {
+                Name = "btnSearchCreditAccounts",
+                Text = "Refresh",
+                Size = new System.Drawing.Size(100, 30),
+                Font = new Font("Segoe UI", 9F),
+                BackColor = _selectedButtonColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(3)
+            };
+
+            _btnSearchCreditAccounts.FlatAppearance.BorderSize = 0;
+
+            _btnViewCreditPayments = new Button
+            {
+                Name = "btnViewCreditPayments",
+                Text = "View Payment History",
+                Size = new System.Drawing.Size(160, 30),
+                Font = new Font("Segoe UI", 9F),
+                BackColor = _selectedButtonColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(3)
+            };
+
+            _btnRecordCreditPayment = new Button
+            {
+                Name = "btnRecordCreditPayment",
+                Text = "Record Payment",
+                Size = new System.Drawing.Size(130, 30),
+                Font = new Font("Segoe UI", 9F),
+                BackColor = _selectedButtonColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(3)
+            };
+
+            _btnRecordCreditPayment.FlatAppearance.BorderSize = 0;
+            _btnViewCreditPayments.FlatAppearance.BorderSize = 0;
+
+            searchPanel.Controls.Add(searchLabel);
+            searchPanel.Controls.Add(_cmbCreditCustomer);
+            searchPanel.Controls.Add(_btnSearchCreditAccounts);
+            searchPanel.Controls.Add(_btnViewCreditPayments);
+            searchPanel.Controls.Add(_btnRecordCreditPayment);
+
+            // Credit accounts grid
+            _creditAccountsGrid = new DataGridView
+            {
+                Name = "dgvCreditAccounts",
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                RowHeadersVisible = false,
+                BackgroundColor = Color.White,
+                AutoGenerateColumns = false
+            };
+
+            _creditAccountsGrid.Columns.Add("Id", "ID");
+            _creditAccountsGrid.Columns.Add("ReferenceNumber", "Reference");
+            _creditAccountsGrid.Columns.Add("IssuedAt", "Date Issued");
+            _creditAccountsGrid.Columns.Add("DueDate", "Due Date");
+            _creditAccountsGrid.Columns.Add("PurchaseAmount", "Purchase Amount");
+            _creditAccountsGrid.Columns.Add("CreditFee", "Credit Fee");
+            _creditAccountsGrid.Columns.Add("TotalAmount", "Total Amount");
+            _creditAccountsGrid.Columns.Add("AmountPaid", "Paid");
+            _creditAccountsGrid.Columns.Add("OutstandingBalance", "Outstanding");
+            _creditAccountsGrid.Columns.Add("Status", "Status");
+
+            _creditAccountsGrid.Columns["Id"]!.Visible = false;
+
+            _creditAccountsGrid.Columns["Id"]!.DataPropertyName = "Id";
+            _creditAccountsGrid.Columns["ReferenceNumber"]!.DataPropertyName = "ReferenceNumber";
+            _creditAccountsGrid.Columns["IssuedAt"]!.DataPropertyName = "IssuedAt";
+            _creditAccountsGrid.Columns["DueDate"]!.DataPropertyName = "DueDate";
+            _creditAccountsGrid.Columns["PurchaseAmount"]!.DataPropertyName = "PurchaseAmount";
+            _creditAccountsGrid.Columns["CreditFee"]!.DataPropertyName = "CreditFee";
+            _creditAccountsGrid.Columns["TotalAmount"]!.DataPropertyName = "TotalAmount";
+
+            _creditAccountsGrid.Columns["IssuedAt"]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            _creditAccountsGrid.Columns["DueDate"]!.DefaultCellStyle.Format = "dd MMM yyyy";
+            _creditAccountsGrid.Columns["PurchaseAmount"]!.DefaultCellStyle.Format = "N2";
+            _creditAccountsGrid.Columns["CreditFee"]!.DefaultCellStyle.Format = "N2";
+            _creditAccountsGrid.Columns["TotalAmount"]!.DefaultCellStyle.Format = "N2";
+            _creditAccountsGrid.Columns["AmountPaid"]!.DefaultCellStyle.Format = "N2";
+            _creditAccountsGrid.Columns["OutstandingBalance"]!.DefaultCellStyle.Format = "N2";
+
+            foreach (DataGridViewColumn column in _creditAccountsGrid.Columns)
+                column.SortMode = DataGridViewColumnSortMode.Automatic;
+
+            // Add controls to layout
+            layout.Controls.Add(headingPanel, 0, 0);
+            layout.Controls.Add(searchPanel, 0, 1);
+            layout.Controls.Add(_creditAccountsGrid, 0, 2);
+
+            _pnlCreditManagement.Controls.Add(layout);
+        }
+
+
+        private void btnRecordCreditPayment_Click(object? sender, EventArgs e)
+        {
+            if (!RequirePermission("Credit.Manage"))
+                return;
+
+            if (_creditAccountsGrid.SelectedRows.Count == 0)
+            {
+                MessageBox.Show(
+                    "Please select a credit account first.",
+                    "No Account Selected",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                return;
+            }
+
+            if (_creditAccountsGrid.SelectedRows[0].DataBoundItem
+                is not CreditSale selectedSale)
+            {
+                MessageBox.Show(
+                    "Unable to retrieve the selected credit account. Please search for the customer again.",
+                    "Credit Account Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+
+                return;
+            }
+
+            try
+            {
+                var payments = _creditService.GetPaymentHistory(selectedSale.Id);
+                decimal paidAmount = payments.Sum(payment => payment.Amount);
+                decimal outstandingBalance = selectedSale.TotalAmount - paidAmount;
+
+                if (outstandingBalance <= 0m)
+                {
+                    MessageBox.Show(
+                        "This credit account has already been fully paid.",
+                        "Account Settled",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+
+                    return;
+                }
+
+                // The payment control accepts currency values to two decimal places.
+                if (outstandingBalance < 0.01m ||
+                    outstandingBalance != decimal.Round(outstandingBalance, 2))
+                {
+                    MessageBox.Show(
+                        "The remaining balance cannot be represented exactly to two decimal places. Please review the account before recording another payment.",
+                        "Balance Requires Review",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    return;
+                }
+
+                using Form paymentForm = new()
+                {
+                    Text = $"Record Payment - {selectedSale.ReferenceNumber}",
+                    Size = new System.Drawing.Size(470, 360),
+                    StartPosition = FormStartPosition.CenterParent,
+                    FormBorderStyle = FormBorderStyle.FixedDialog,
+                    MaximizeBox = false,
+                    MinimizeBox = false,
+                    BackColor = Color.White,
+                    Font = new Font("Segoe UI", 9F)
+                };
+
+                var layout = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    Padding = new Padding(20),
+                    ColumnCount = 2,
+                    RowCount = 5,
+                    BackColor = Color.White
+                };
+
+                layout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 150F));
+                layout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+                layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 45F));
+                layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+
+                var lblOutstanding = new Label
+                {
+                    Text = $"Outstanding Balance: {GetCurrencyPrefix()}{outstandingBalance:N2}",
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    AutoSize = true,
+                    Anchor = AnchorStyles.Left
+                };
+
+                layout.Controls.Add(lblOutstanding, 0, 0);
+                layout.SetColumnSpan(lblOutstanding, 2);
+
+                var lblAmount = new Label
+                {
+                    Text = "Payment Amount:",
+                    AutoSize = true,
+                    Anchor = AnchorStyles.Left
+                };
+
+                var nudAmount = new NumericUpDown
+                {
+                    Minimum = 0.01m,
+                    Maximum = 10000000m,
+                    DecimalPlaces = 2,
+                    Increment = Math.Min(100m, outstandingBalance),
+                    Width = 220,
+                    Font = new Font("Segoe UI", 10F),
+                    ThousandsSeparator = true
+                };
+
+                layout.Controls.Add(lblAmount, 0, 1);
+                layout.Controls.Add(nudAmount, 1, 1);
+
+                var lblMethod = new Label
+                {
+                    Text = "Payment Method:",
+                    AutoSize = true,
+                    Anchor = AnchorStyles.Left
+                };
+
+                var cmbMethod = new ComboBox
+                {
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    Width = 220,
+                    Font = new Font("Segoe UI", 10F)
+                };
+
+                cmbMethod.Items.AddRange(new object[]
+                {
+                    "Cash",
+                    "Card",
+                    "Bank Transfer",
+                    "Cheque",
+                    "Other"
+                });
+
+                cmbMethod.SelectedIndex = 0;
+
+                layout.Controls.Add(lblMethod, 0, 2);
+                layout.Controls.Add(cmbMethod, 1, 2);
+
+                var lblReference = new Label
+                {
+                    Text = "Reference Number:",
+                    AutoSize = true,
+                    Anchor = AnchorStyles.Left
+                };
+
+                var txtReference = new TextBox
+                {
+                    Width = 220,
+                    Font = new Font("Segoe UI", 10F),
+                    MaxLength = 100
+                };
+
+                layout.Controls.Add(lblReference, 0, 3);
+                layout.Controls.Add(txtReference, 1, 3);
+
+                var buttonPanel = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    FlowDirection = FlowDirection.RightToLeft,
+                    Padding = new Padding(0, 10, 0, 0)
+                };
+
+                var btnSave = new Button
+                {
+                    Text = "Record Payment",
+                    Size = new System.Drawing.Size(135, 32),
+                    BackColor = _selectedButtonColor,
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand
+                };
+
+                btnSave.FlatAppearance.BorderSize = 0;
+
+                var btnCancel = new Button
+                {
+                    Text = "Cancel",
+                    Size = new System.Drawing.Size(90, 32),
+                    DialogResult = DialogResult.Cancel
+                };
+
+                buttonPanel.Controls.Add(btnSave);
+                buttonPanel.Controls.Add(btnCancel);
+
+                layout.Controls.Add(buttonPanel, 0, 4);
+                layout.SetColumnSpan(buttonPanel, 2);
+
+                paymentForm.Controls.Add(layout);
+                paymentForm.AcceptButton = btnSave;
+                paymentForm.CancelButton = btnCancel;
+
+                btnSave.Click += (s, args) =>
+                {
+                    if (nudAmount.Value <= 0m ||
+                        nudAmount.Value > outstandingBalance)
+                    {
+                        MessageBox.Show(
+                            "Enter a payment amount greater than zero that does not exceed the outstanding balance.",
+                            "Invalid Amount",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+
+                        return;
+                    }
+
+                    if (cmbMethod.SelectedItem == null)
+                    {
+                        MessageBox.Show(
+                            "Please select a payment method.",
+                            "Payment Method Required",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+
+                        return;
+                    }
+
+                    try
+                    {
+                        _creditService.RecordPayment(
+                            selectedSale.Id,
+                            nudAmount.Value,
+                            cmbMethod.SelectedItem.ToString()!,
+                            string.IsNullOrWhiteSpace(txtReference.Text)
+                                ? null
+                                : txtReference.Text.Trim());
+
+                        MessageBox.Show(
+                            "Payment recorded successfully.",
+                            "Payment Recorded",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        paymentForm.DialogResult = DialogResult.OK;
+                        paymentForm.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            $"Unable to record payment: {ex.Message}",
+                            "Payment Error",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error);
+                    }
+                };
+
+                if (paymentForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    btnSearchCreditAccounts_Click(this, EventArgs.Empty);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Unable to prepare payment: {ex.Message}",
+                    "Credit Management Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         private void ApplyNavigationPermissions()
@@ -694,8 +1196,12 @@ namespace KKWholesalePOS.UI
 
             btnSettings.Enabled = HasPermission("Settings.Manage");
 
-            _btnCreditManagement.Visible = HasPermission("Credit.Manage");
+            _btnCreditManagement.Visible = true;
             _btnCreditManagement.Enabled = HasPermission("Credit.Manage");
+
+            _btnCreditManagement.BackColor = _btnCreditManagement.Enabled
+                ? _normalButtonColor
+                : Color.Gray;
 
             ApplyManagementTabPermissions();
             ApplyManagementActionPermissions();
@@ -736,6 +1242,10 @@ namespace KKWholesalePOS.UI
                     LoadAuditLog();
                 }
             }
+            else if (pageTitle == "Credit Management")
+            {
+                LoadCreditCustomers();
+            }
 
             // Hide all pages
             pnlDashboard.Visible = false;
@@ -765,7 +1275,9 @@ namespace KKWholesalePOS.UI
             btnDashboard.BackColor = _normalButtonColor;
             btnReports.BackColor = _normalButtonColor;
             btnUserManagement.BackColor = _normalButtonColor;
-            _btnCreditManagement.BackColor = _normalButtonColor;
+            _btnCreditManagement.BackColor = _btnCreditManagement.Enabled
+                ? _normalButtonColor
+                : Color.Gray;
             btnSettings.BackColor = _normalButtonColor;
 
             // Highlight selected navigation button
@@ -793,8 +1305,8 @@ namespace KKWholesalePOS.UI
             }
             else if (CanAccessPage("Credit Management"))
             {
-                 ShowPage(_pnlCreditManagement, "Credit Management", _btnCreditManagement);
-            }   
+                ShowPage(_pnlCreditManagement, "Credit Management", _btnCreditManagement);
+            }
             else
             {
                 MessageBox.Show(
@@ -852,6 +1364,34 @@ namespace KKWholesalePOS.UI
                     "Settings Error",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+            }
+        }
+
+        private string GetCurrencyPrefix()
+        {
+            try
+            {
+                string code = _businessSettingsService.GetSettings().CurrencyCode;
+                return code.Equals("JMD", StringComparison.OrdinalIgnoreCase)
+                    ? "J$"
+                    : $"{code} ";
+            }
+            catch
+            {
+                return "J$";
+            }
+        }
+
+        private string GetConfiguredDateFormat()
+        {
+            try
+            {
+                string format = _businessSettingsService.GetSettings().DateFormat;
+                return string.IsNullOrWhiteSpace(format) ? "dd/MM/yyyy" : format;
+            }
+            catch
+            {
+                return "dd/MM/yyyy";
             }
         }
 
@@ -923,7 +1463,7 @@ namespace KKWholesalePOS.UI
                 // Today's sales
                 lblSalesTodayValue.Text =
                     summary.SalesToday.ToString("C");
-                
+
                 lblTransactionsToday.Text =
                     $"{summary.TransactionsToday} transactions";
 
@@ -972,9 +1512,9 @@ namespace KKWholesalePOS.UI
         }
         private void btnCreditManagement_Click(object? sender, EventArgs e)
         {
-            ShowPage( _pnlCreditManagement, "Credit Management", _btnCreditManagement );
+            ShowPage(_pnlCreditManagement, "Credit Management", _btnCreditManagement);
         }
-      
+
         private void btnSettings_Click(object sender, EventArgs e)
         {
             if (!RequirePermission("Settings.Manage"))
@@ -1042,6 +1582,16 @@ namespace KKWholesalePOS.UI
                 DateTime startDate = dtpStartDate.Value.Date;
                 DateTime endDate = dtpEndDate.Value.Date;
 
+                if (cmbReportType.SelectedIndex != 3 && startDate > endDate)
+                {
+                    MessageBox.Show(
+                        "Start date cannot be after the end date.",
+                        "Invalid Date Range",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+                }
+
                 switch (cmbReportType.SelectedIndex)
                 {
                     case 0:
@@ -1095,7 +1645,7 @@ namespace KKWholesalePOS.UI
             {
                 MessageBox.Show(
                     ex.Message,
-                    "Feature Not Implemented (ノಠ益ಠ)ノ彡┻━┻\r\n",
+                    "Feature Unavailable",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
             }
@@ -1973,6 +2523,115 @@ namespace KKWholesalePOS.UI
             rolesTab.Controls.Add(layout);
         }
 
+        private void LoadCreditCustomers()
+        {
+            int? previousCustomerId = _cmbCreditCustomer.SelectedValue as int?;
+            var customers = _customerRepository.GetAll();
+
+            _cmbCreditCustomer.DataSource = null;
+            _cmbCreditCustomer.DisplayMember = nameof(KKWholesalePOS.Core.Models.Others.Customer.Name);
+            _cmbCreditCustomer.ValueMember = nameof(KKWholesalePOS.Core.Models.Others.Customer.Id);
+            _cmbCreditCustomer.DataSource = customers;
+
+            if (previousCustomerId.HasValue &&
+                customers.Any(c => c.Id == previousCustomerId.Value))
+            {
+                _cmbCreditCustomer.SelectedValue = previousCustomerId.Value;
+            }
+            else
+            {
+                _cmbCreditCustomer.SelectedIndex = -1;
+                _creditAccountsGrid.DataSource = null;
+            }
+        }
+
+        private void btnSearchCreditAccounts_Click(object? sender, EventArgs e)
+        {
+            if (!RequirePermission("Credit.Manage"))
+                return;
+
+            if (_cmbCreditCustomer.SelectedValue is not int customerId || customerId <= 0)
+            {
+                _creditAccountsGrid.DataSource = null;
+
+                MessageBox.Show(
+                    "Please select a valid customer from the dropdown.",
+                    "Customer Required",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                _cmbCreditCustomer.Focus();
+                return;
+            }
+
+            LoadCustomerCreditAccounts(customerId, showEmptyMessage: true);
+        }
+
+        private void LoadCustomerCreditAccounts(int customerId, bool showEmptyMessage = false)
+        {
+            try
+            {
+                var accounts = _creditService.GetCustomerAccount(customerId);
+
+                _creditAccountsGrid.DataSource = null;
+                _creditAccountsGrid.DataSource = accounts;
+
+                string dateFormat = GetConfiguredDateFormat();
+                _creditAccountsGrid.Columns["IssuedAt"]!.DefaultCellStyle.Format = dateFormat;
+                _creditAccountsGrid.Columns["DueDate"]!.DefaultCellStyle.Format = dateFormat;
+
+                for (int i = 0; i < accounts.Count && i < _creditAccountsGrid.Rows.Count; i++)
+                {
+                    var sale = accounts[i];
+                    var payments = _creditService.GetPaymentHistory(sale.Id);
+                    decimal paid = payments.Sum(p => p.Amount);
+                    decimal outstanding = Math.Max(0m, sale.TotalAmount - paid);
+
+                    string status = outstanding <= 0m
+                        ? "Paid"
+                        : (DateTime.UtcNow.Date > sale.DueDate.Date ? "Overdue" : "Open");
+
+                    var row = _creditAccountsGrid.Rows[i];
+                    row.Cells["AmountPaid"].Value = paid;
+                    row.Cells["OutstandingBalance"].Value = outstanding;
+                    row.Cells["Status"].Value = status;
+
+                    if (status == "Overdue")
+                    {
+                        row.Cells["Status"].Style.ForeColor = Color.Crimson;
+                        row.Cells["Status"].Style.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                    }
+                    else if (status == "Paid")
+                    {
+                        row.Cells["Status"].Style.ForeColor = Color.SeaGreen;
+                    }
+                }
+
+                if (accounts.Count == 0 && showEmptyMessage)
+                {
+                    MessageBox.Show(
+                        "No credit accounts were found for this customer.",
+                        "No Credit Accounts",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                else if (_creditAccountsGrid.Rows.Count > 0)
+                {
+                    _creditAccountsGrid.ClearSelection();
+                    _creditAccountsGrid.Rows[0].Selected = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                _creditAccountsGrid.DataSource = null;
+
+                MessageBox.Show(
+                    $"Unable to retrieve customer credit accounts: {ex.Message}",
+                    "Credit Management Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
 
         private void ConfigurePermissionsTab(TabPage permissionsTab)
         {
@@ -2150,7 +2809,7 @@ namespace KKWholesalePOS.UI
             };
 
             auditGrid.Columns.Add("Timestamp", "Date & Time");
-            auditGrid.Columns.Add("Username", "Username"); 
+            auditGrid.Columns.Add("Username", "Username");
             auditGrid.Columns.Add("Action", "Action");
             auditGrid.Columns.Add("EntityType", "Entity");
             auditGrid.Columns.Add("EntityId", "Entity ID");
@@ -2334,6 +2993,89 @@ namespace KKWholesalePOS.UI
                     entry.EntityType,
                     entry.EntityId ?? string.Empty,
                     entry.Details ?? string.Empty);
+            }
+        }
+
+        private void btnViewCreditPayments_Click(object? sender, EventArgs e)
+        {
+            if (!RequirePermission("Credit.Manage"))
+                return;
+
+            if (_creditAccountsGrid.SelectedRows.Count == 0 ||
+                _creditAccountsGrid.SelectedRows[0].DataBoundItem is not CreditSale selectedSale)
+            {
+                MessageBox.Show(
+                    "Please select a credit account first.",
+                    "No Account Selected",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                var payments = _creditService.GetPaymentHistory(selectedSale.Id);
+                decimal totalPaid = payments.Sum(payment => payment.Amount);
+                decimal outstanding = selectedSale.TotalAmount - totalPaid;
+
+                using Form paymentForm = new()
+                {
+                    Text = $"Payment History - {selectedSale.ReferenceNumber}",
+                    Size = new System.Drawing.Size(850, 480),
+                    StartPosition = FormStartPosition.CenterParent,
+                    BackColor = Color.White,
+                    Font = new Font("Segoe UI", 9F)
+                };
+
+                var summaryLabel = new Label
+                {
+                    Dock = DockStyle.Top,
+                    Height = 48,
+                    Padding = new Padding(12),
+                    Text = $"Credit Total: {GetCurrencyPrefix()}{selectedSale.TotalAmount:N2}    " +
+                           $"Paid: {GetCurrencyPrefix()}{totalPaid:N2}    " +
+                           $"Outstanding: {GetCurrencyPrefix()}{Math.Max(0m, outstanding):N2}",
+                    Font = new Font("Segoe UI", 10F, FontStyle.Bold),
+                    TextAlign = ContentAlignment.MiddleLeft
+                };
+
+                DataGridView paymentGrid = new()
+                {
+                    Dock = DockStyle.Fill,
+                    AutoGenerateColumns = true,
+                    ReadOnly = true,
+                    AllowUserToAddRows = false,
+                    AllowUserToDeleteRows = false,
+                    SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                    MultiSelect = false,
+                    AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                    BackgroundColor = Color.White,
+                    RowHeadersVisible = false,
+                    DataSource = payments
+                };
+
+                paymentForm.Controls.Add(paymentGrid);
+                paymentForm.Controls.Add(summaryLabel);
+
+                if (paymentGrid.Columns[nameof(CreditPayment.Amount)] != null)
+                    paymentGrid.Columns[nameof(CreditPayment.Amount)].DefaultCellStyle.Format = "N2";
+
+                if (paymentGrid.Columns[nameof(CreditPayment.PaymentDate)] != null)
+                    paymentGrid.Columns[nameof(CreditPayment.PaymentDate)].DefaultCellStyle.Format = $"{GetConfiguredDateFormat()} HH:mm";
+                if (payments.Count == 0)
+                {
+                    summaryLabel.Text += "    No payments have been recorded.";
+                }
+
+                paymentForm.ShowDialog(this);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Unable to retrieve payment history: {ex.Message}",
+                    "Credit Management Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 

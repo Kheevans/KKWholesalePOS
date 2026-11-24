@@ -1,6 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
-using KKWholesalePOS.Core.Models;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Inventory;
 using KKWholesalePOS.Core.Models.Others;
 using KKWholesalePOS.Core.Models.Sales;
@@ -12,6 +10,7 @@ namespace KKWholesalePOS.Tests.Services;
 public class RegularSaleServiceTests
 {
     private readonly Mock<IRegularSaleRepository> _repositoryMock = new();
+    private readonly Mock<IAuditLogRepository> _auditRepositoryMock = new();
 
     private RegularSaleService CreateAuthorizedService()
     {
@@ -46,18 +45,33 @@ public class RegularSaleServiceTests
 
         session.StartSession(user);
 
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            _auditRepositoryMock.Object,
+            session,
+            authService);
+
         return new RegularSaleService(
             _repositoryMock.Object,
             session,
-            new AuthorizationService());
+            authService,
+            auditService);
     }
 
     private RegularSaleService CreateUnauthorizedService()
     {
+        var session = new UserSessionService();
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            _auditRepositoryMock.Object,
+            session,
+            authService);
+
         return new RegularSaleService(
             _repositoryMock.Object,
-            new UserSessionService(),
-            new AuthorizationService());
+            session,
+            authService,
+            auditService);
     }
 
     [Fact]
@@ -79,9 +93,9 @@ public class RegularSaleServiceTests
         var service = CreateUnauthorizedService();
 
         var items = new List<SaleRequestLine>
-{
-    new SaleRequestLine(1, 2)
-};
+        {
+            new SaleRequestLine(1, 2)
+        };
 
         Assert.Throws<UnauthorizedAccessException>(() =>
             service.CompleteCashSale(
@@ -105,9 +119,9 @@ public class RegularSaleServiceTests
         var service = CreateUnauthorizedService();
 
         var items = new List<SaleRequestLine>
-{
-    new SaleRequestLine(1, 2)
-};
+        {
+            new SaleRequestLine(1, 2)
+        };
 
         Assert.Throws<UnauthorizedAccessException>(() =>
             service.CompleteCardSale(

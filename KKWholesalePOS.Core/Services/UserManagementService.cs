@@ -1,5 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -10,17 +9,20 @@ public class UserManagementService
     private readonly PasswordService _passwordService;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService _auditLogService;
 
     public UserManagementService(
         IUserRepository userRepository,
         PasswordService passwordService,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService auditLogService)
     {
         _userRepository = userRepository;
         _passwordService = passwordService;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     private bool HasPermission(string permissionName)
@@ -57,7 +59,16 @@ public class UserManagementService
     public User CreateUser(string username, string password)
     {
         RequirePermission("Users.Manage");
-        return CreateUserCore(username, password);
+        var user = CreateUserCore(username, password);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "UserCreated",
+            "User",
+            user.Id.ToString(),
+            $"Created user '{user.Username}'.");
+
+        return user;
     }
 
     // Used only during initial system setup, before login.
@@ -123,6 +134,13 @@ public class UserManagementService
 
         _userRepository.Update(user);
         _userRepository.SaveChanges();
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "UserDeactivated",
+            "User",
+            user.Id.ToString(),
+            $"Deactivated user '{user.Username}'.");
     }
 
     public void ActivateUser(int userId)
@@ -141,5 +159,12 @@ public class UserManagementService
 
         _userRepository.Update(user);
         _userRepository.SaveChanges();
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "UserActivated",
+            "User",
+            user.Id.ToString(),
+            $"Activated user '{user.Username}'.");
     }
 }

@@ -1,4 +1,3 @@
-
 using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Credit;
 using KKWholesalePOS.Core.Models.Inventory;
@@ -14,11 +13,64 @@ public class CreditServiceTests
     private readonly Mock<ICreditRepository> _repository = new();
     private readonly Mock<IAuditLogRepository> _auditRepository = new();
 
-    private CreditService CreateService()
+    private CreditService CreateAuthorizedService(params string[] permissions)
     {
+        var session = new UserSessionService();
+
+        var rolePermissions = permissions
+            .Select(p => new RolePermission
+            {
+                Permission = new Permission { Name = p }
+            })
+            .ToList();
+
+        var user = new User
+        {
+            Id = 1,
+            Username = "testuser",
+            IsActive = true,
+            UserRoles = new List<UserRole>
+            {
+                new UserRole
+                {
+                    Role = new Role
+                    {
+                        Name = "TestRole",
+                        RolePermissions = rolePermissions
+                    }
+                }
+            }
+        };
+
+        session.StartSession(user);
+
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            _auditRepository.Object,
+            session,
+            authService);
+
         return new CreditService(
             _repository.Object,
-            _auditRepository.Object);
+            session,
+            authService,
+            auditService);
+    }
+
+    private CreditService CreateUnauthorizedService()
+    {
+        var session = new UserSessionService();
+        var authService = new AuthorizationService();
+        var auditService = new AuditLogService(
+            _auditRepository.Object,
+            session,
+            authService);
+
+        return new CreditService(
+            _repository.Object,
+            session,
+            authService,
+            auditService);
     }
 
     private static CreditSale CreateSale()
@@ -36,7 +88,20 @@ public class CreditServiceTests
     }
 
     [Fact]
-    public void CreateCreditSale_AddsFivePercentFee()
+    public void CreateCreditSale_WithoutPermission_ThrowsUnauthorizedAccessException()
+    {
+        var service = CreateUnauthorizedService();
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.CreateCreditSale(1, new List<SaleRequestLine> { new(1, 1) }));
+
+        _repository.Verify(
+            r => r.CreateCreditSaleWithStock(It.IsAny<CreditSale>(), It.IsAny<int>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public void CreateCreditSale_AddsFivePercentFee_AndLogsAuditEntry()
     {
         var product = new Product
         {
@@ -50,18 +115,26 @@ public class CreditServiceTests
         _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
         _repository.Setup(r => r.GetProductById(1)).Returns(product);
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
         var sale = service.CreateCreditSale(
-            1, 1, new List<SaleRequestLine>
-            {
-                new(1, 2)
-            });
+            1,
+            new List<SaleRequestLine> { new(1, 2) });
 
         Assert.Equal(2000m, sale.PurchaseAmount);
         Assert.Equal(100m, sale.CreditFee);
         Assert.Equal(2100m, sale.TotalAmount);
-        _repository.Verify(r => r.AddCreditSale(It.IsAny<CreditSale>()), Times.Once);
+
+        _repository.Verify(
+            r => r.CreateCreditSaleWithStock(It.IsAny<CreditSale>(), 1),
+            Times.Once);
+
+        _auditRepository.Verify(
+            a => a.Add(It.Is<AuditLogEntry>(e =>
+                e.Action == "CreditSaleCreated" &&
+                e.EntityType == "CreditSale" &&
+                e.UserId == 1)),
+            Times.Once);
     }
 
     [Fact]
@@ -69,17 +142,15 @@ public class CreditServiceTests
     {
         _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
         Assert.Throws<InvalidOperationException>(() =>
             service.CreateCreditSale(
-                1, 1, new List<SaleRequestLine>
-                {
-                    new(1, 0)
-                }));
+                1,
+                new List<SaleRequestLine> { new(1, 0) }));
 
         _repository.Verify(
-            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            r => r.CreateCreditSaleWithStock(It.IsAny<CreditSale>(), It.IsAny<int>()),
             Times.Never);
     }
 
@@ -97,17 +168,15 @@ public class CreditServiceTests
         _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
         _repository.Setup(r => r.GetProductById(1)).Returns(product);
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
         Assert.Throws<InvalidOperationException>(() =>
             service.CreateCreditSale(
-                1, 1, new List<SaleRequestLine>
-                {
-                    new(1, 3)
-                }));
+                1,
+                new List<SaleRequestLine> { new(1, 3) }));
 
         _repository.Verify(
-            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            r => r.CreateCreditSaleWithStock(It.IsAny<CreditSale>(), It.IsAny<int>()),
             Times.Never);
     }
 
@@ -116,22 +185,42 @@ public class CreditServiceTests
     {
         _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(true);
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
         Assert.Throws<InvalidOperationException>(() =>
             service.CreateCreditSale(
-                1, 1, new List<SaleRequestLine>
-                {
-                    new(1, 1)
-                }));
+                1,
+                new List<SaleRequestLine> { new(1, 1) }));
 
         _repository.Verify(
-            r => r.AddCreditSale(It.IsAny<CreditSale>()),
+            r => r.CreateCreditSaleWithStock(It.IsAny<CreditSale>(), It.IsAny<int>()),
             Times.Never);
     }
 
     [Fact]
-    public void RecordPayment_AcceptsPartialPayment()
+    public void CreateCreditSale_RejectsPurchaseExceedingCreditLimit()
+    {
+        var product = new Product
+        {
+            Id = 1,
+            Name = "Bulk Liquor",
+            SellingPrice = 60000m,
+            StockQuantity = 10
+        };
+
+        _repository.Setup(r => r.HasUnpaidCredit(1)).Returns(false);
+        _repository.Setup(r => r.GetProductById(1)).Returns(product);
+
+        var service = CreateAuthorizedService("Credit.Manage");
+
+        Assert.Throws<InvalidOperationException>(() =>
+            service.CreateCreditSale(
+                1,
+                new List<SaleRequestLine> { new(1, 2) }));
+    }
+
+    [Fact]
+    public void RecordPayment_AcceptsPartialPayment_AndLogsAuditEntry()
     {
         var sale = CreateSale();
 
@@ -139,21 +228,26 @@ public class CreditServiceTests
         _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
             .Returns(new List<CreditPayment>());
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
-        var payment = service.RecordPayment(
-            1, 1, 3000m, "Cash");
+        var payment = service.RecordPayment(1, 3000m, "Cash", "RCPT-100");
 
         Assert.Equal(3000m, payment.Amount);
-        Assert.Equal(7500m, sale.TotalAmount - payment.Amount);
+        Assert.Equal("Cash", payment.PaymentMethod);
 
         _repository.Verify(
-            r => r.AddPayment(It.IsAny<CreditPayment>()),
+            r => r.AddPaymentWithinBalance(It.IsAny<CreditPayment>()),
+            Times.Once);
+
+        _auditRepository.Verify(
+            a => a.Add(It.Is<AuditLogEntry>(e =>
+                e.Action == "CreditPaymentRecorded" &&
+                e.EntityType == "CreditPayment")),
             Times.Once);
     }
 
     [Fact]
-    public void RecordPayment_RejectsPaymentGreaterThanBalance()
+    public void RecordPayment_RejectsExcessivePayment()
     {
         var sale = CreateSale();
 
@@ -161,81 +255,84 @@ public class CreditServiceTests
         _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
             .Returns(new List<CreditPayment>());
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
 
         Assert.Throws<InvalidOperationException>(() =>
-            service.RecordPayment(1, 1, 11000m, "Cash"));
+            service.RecordPayment(1, 11000m, "Cash"));
 
         _repository.Verify(
-            r => r.AddPayment(It.IsAny<CreditPayment>()),
+            r => r.AddPaymentWithinBalance(It.IsAny<CreditPayment>()),
             Times.Never);
     }
 
     [Fact]
-    public void ModifyCreditAmount_AllowsOwnerAndCreatesAuditLog()
+    public void ModifyCreditAmount_WithoutModifyPermission_ThrowsUnauthorizedAccessException()
+    {
+        var service = CreateAuthorizedService("Credit.Manage");
+
+        Assert.Throws<UnauthorizedAccessException>(() =>
+            service.ModifyCreditAmount(1, 8000m, "Correction"));
+    }
+
+    [Fact]
+    public void ModifyCreditAmount_RequiresReason()
+    {
+        var service = CreateAuthorizedService("Credit.Modify");
+
+        Assert.Throws<ArgumentException>(() =>
+            service.ModifyCreditAmount(1, 8000m, ""));
+    }
+
+    [Fact]
+    public void ModifyCreditAmount_WithPermissionAndReason_UpdatesAndLogsAudit()
     {
         var sale = CreateSale();
-
-        var owner = new User
-        {
-            Id = 1,
-            Username = "owner",
-            UserRoles = new List<UserRole>
-            {
-                new UserRole
-                {
-                    UserId = 1,
-                    RoleId = 1,
-                    Role = new Role { Id = 1, Name = "Owner" }
-                }
-            }
-        };
-
-        _repository.Setup(r => r.GetUserWithRoles(1)).Returns(owner);
         _repository.Setup(r => r.GetById(1)).Returns(sale);
         _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
             .Returns(new List<CreditPayment>());
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Modify");
 
-        service.ModifyCreditAmount(1, 1, 12000m);
+        service.ModifyCreditAmount(1, 8000m, "Invoice correction approved by owner");
 
-        Assert.Equal(12000m, sale.PurchaseAmount);
-        Assert.Equal(600m, sale.CreditFee);
+        Assert.Equal(8000m, sale.PurchaseAmount);
+        Assert.Equal(400m, sale.CreditFee);
 
         _repository.Verify(r => r.UpdateCreditSale(sale), Times.Once);
         _auditRepository.Verify(
-            r => r.Add(It.IsAny<AuditLogEntry>()),
+            a => a.Add(It.Is<AuditLogEntry>(e =>
+                e.Action == "CreditAmountModified" &&
+                e.Details!.Contains("Invoice correction approved by owner"))),
             Times.Once);
     }
 
     [Fact]
-    public void ModifyCreditAmount_RejectsUnauthorizedStaff()
+    public void GetCustomerCreditSummary_DetectsOverdueBalance()
     {
-        var staff = new User
+        var overdueSale = new CreditSale
         {
-            Id = 2,
-            Username = "staff",
-            UserRoles = new List<UserRole>
-            {
-                new UserRole
-                {
-                    UserId = 2,
-                    RoleId = 2,
-                    Role = new Role { Id = 2, Name = "Staff" }
-                }
-            }
+            Id = 1,
+            CustomerId = 1,
+            PurchaseAmount = 10000m,
+            CreditFee = 500m,
+            DueDate = DateTime.UtcNow.AddDays(-2)
         };
 
-        _repository.Setup(r => r.GetUserWithRoles(2)).Returns(staff);
+        _repository.Setup(r => r.GetByCustomerId(1))
+            .Returns(new List<CreditSale> { overdueSale });
+        _repository.Setup(r => r.GetPaymentsByCreditSaleId(1))
+            .Returns(new List<CreditPayment>
+            {
+                new CreditPayment { Amount = 2500m }
+            });
 
-        var service = CreateService();
+        var service = CreateAuthorizedService("Credit.Manage");
+        var summary = service.GetCustomerCreditSummary(1);
 
-        Assert.Throws<UnauthorizedAccessException>(() =>
-            service.ModifyCreditAmount(1, 2, 12000m));
-
-        _repository.Verify(
-            r => r.UpdateCreditSale(It.IsAny<CreditSale>()),
-            Times.Never);
+        Assert.Equal(10500m, summary.TotalPurchasedWithFees);
+        Assert.Equal(2500m, summary.TotalPaid);
+        Assert.Equal(8000m, summary.OutstandingBalance);
+        Assert.True(summary.HasUnpaidInvoice);
+        Assert.True(summary.HasOverdueInvoice);
     }
 }

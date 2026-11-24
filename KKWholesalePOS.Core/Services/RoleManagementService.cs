@@ -1,5 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -10,20 +9,25 @@ public class RoleManagementService
     private readonly IUserRepository _userRepository;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService _auditLogService;
+
     internal List<Role> GetAllRolesForInitialSetup()
     {
         return _roleRepository.GetAll();
     }
+
     public RoleManagementService(
         IRoleRepository roleRepository,
         IUserRepository userRepository,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService auditLogService)
     {
         _roleRepository = roleRepository;
         _userRepository = userRepository;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     private bool HasPermission(string permissionName)
@@ -44,6 +48,7 @@ public class RoleManagementService
                 "You do not have permission to perform this action.");
         }
     }
+
     public List<Role> GetAllRoles()
     {
         if (!HasPermission("Roles.Manage") &&
@@ -59,7 +64,16 @@ public class RoleManagementService
     public Role CreateRole(string name, string description)
     {
         RequirePermission("Roles.Manage");
-        return CreateRoleCore(name, description);
+        var role = CreateRoleCore(name, description);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "RoleCreated",
+            "Role",
+            role.Id.ToString(),
+            $"Created role '{role.Name}'.");
+
+        return role;
     }
 
     // Used only during initial system setup, before login.
@@ -101,6 +115,13 @@ public class RoleManagementService
     {
         RequirePermission("Roles.Manage");
         AssignRoleToUserCore(userId, roleId);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "RoleAssigned",
+            "UserRole",
+            $"{userId}:{roleId}",
+            $"Assigned role ID {roleId} to user ID {userId}.");
     }
 
     // Used only during initial system setup, before login.
@@ -143,6 +164,13 @@ public class RoleManagementService
         }
 
         _userRepository.RemoveRole(userId, roleId);
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "RoleRemoved",
+            "UserRole",
+            $"{userId}:{roleId}",
+            $"Removed role ID {roleId} from user ID {userId}.");
     }
 
     public List<Role> GetUserRoles(int userId)

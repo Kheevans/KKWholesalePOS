@@ -9,15 +9,18 @@ public class BusinessSettingsService
     private readonly IBusinessSettingsRepository _repository;
     private readonly UserSessionService _userSession;
     private readonly AuthorizationService _authorizationService;
+    private readonly AuditLogService _auditLogService;
 
     public BusinessSettingsService(
         IBusinessSettingsRepository repository,
         UserSessionService userSession,
-        AuthorizationService authorizationService)
+        AuthorizationService authorizationService,
+        AuditLogService auditLogService)
     {
         _repository = repository;
         _userSession = userSession;
         _authorizationService = authorizationService;
+        _auditLogService = auditLogService;
     }
 
     public BusinessSettings GetSettings()
@@ -73,6 +76,13 @@ public class BusinessSettingsService
         }
 
         _repository.SaveChanges();
+
+        _auditLogService.LogAction(
+            _userSession.CurrentUser?.Id,
+            "BusinessSettingsUpdated",
+            "BusinessSettings",
+            settings.Id.ToString(),
+            $"Business settings updated for '{settings.BusinessName}'.");
     }
 
     private void RequirePermission(string permissionName)
