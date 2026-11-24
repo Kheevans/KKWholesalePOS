@@ -89,6 +89,7 @@
             statusStripMain = new StatusStrip();
             tsslSessionStatus = new ToolStripStatusLabel();
             tsslDateTime = new ToolStripStatusLabel();
+            pnlInventory = new Panel();
             pnlHeader.SuspendLayout();
             pnlSidebar.SuspendLayout();
             flpNavigation.SuspendLayout();
@@ -325,6 +326,7 @@
             // pnlContent
             // 
             pnlContent.BackColor = Color.FromArgb(243, 244, 246);
+            pnlContent.Controls.Add(pnlInventory);
             pnlContent.Controls.Add(lblPageTitle);
             pnlContent.Controls.Add(lblWelcome);
             pnlContent.Controls.Add(pnlConsignments);
@@ -834,6 +836,17 @@
             tsslDateTime.Size = new Size(171, 25);
             tsslDateTime.Text = "K&&K Wholesale POS";
             tsslDateTime.TextAlign = ContentAlignment.MiddleRight;
+            //
+            // pnlInventory
+            //
+            pnlInventory.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+            pnlInventory.BackColor = Color.White;
+            pnlInventory.BorderStyle = BorderStyle.FixedSingle;
+            pnlInventory.Location = new Point(20, 110);
+            pnlInventory.Name = "pnlInventory";
+            pnlInventory.Size = new Size(1315, 597);
+            pnlInventory.TabIndex = 15;
+            pnlInventory.Visible = false;
             // 
             // MainForm
             // 
@@ -946,5 +959,6 @@
         private Button btnExportWord;
         private Button btnExportExcel;
         private Button btnExportPdf;
+        private Panel pnlInventory;
     }
 }

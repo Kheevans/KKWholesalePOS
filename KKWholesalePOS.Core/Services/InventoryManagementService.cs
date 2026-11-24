@@ -88,6 +88,20 @@ public class InventoryManagementService
         return _repository.GetNegativeStockProducts();
     }
 
+    // Retrieve inventory records with available and outstanding stock quantities
+    public List<InventoryRow> GetInventory(string searchTerm = "")
+    {
+        RequirePermission("Inventory.View");
+
+        return _repository.GetInventory(searchTerm.Trim());
+    }
+
+    // Calculate product counts and stock totals for the inventory overview
+    public InventorySummary GetSummary()
+    {
+        return InventorySummary.FromRows(GetInventory());
+    }
+
     public List<StockMovement> GetStockMovements(int? productId = null)
     {
         RequirePermission("Inventory.View");
@@ -96,6 +110,17 @@ public class InventoryManagementService
             throw new ArgumentException("Invalid product ID.", nameof(productId));
 
         return _repository.GetStockMovements(productId);
+    }
+
+    // Retrieve stock movement history with product and user details
+    public List<StockMovementRow> GetStockMovementHistory(int productId)
+    {
+        RequirePermission("Inventory.View");
+
+        if (productId <= 0)
+            throw new ArgumentException("Invalid product ID.", nameof(productId));
+
+        return _repository.GetStockMovementHistory(productId);
     }
 
     public void SetMinimumStockLevel(int productId, int minimumStockLevel)
