@@ -26,11 +26,17 @@ namespace KKWholesalePOS.UI
             var consignmentReturnRepository = new ConsignmentReturnRepository(dbContext);
             var dashboardRepository = new DashboardRepository(dbContext);
             var permissionRepository = new PermissionRepository(dbContext);
+            var businessSettingsRepository = new BusinessSettingsRepository(dbContext);
 
             // Core services
             var passwordService = new PasswordService();
             var authorizationService = new AuthorizationService();
             var userSessionService = new UserSessionService();
+
+            var businessSettingsService = new BusinessSettingsService(
+                businessSettingsRepository,
+                userSessionService,
+                authorizationService);
 
             var permissionManagementService = new PermissionManagementService(
                 permissionRepository,
@@ -123,6 +129,7 @@ namespace KKWholesalePOS.UI
                     auditLogService,
                     authorizationService,
                     consignmentReturnService));
+                    businessSettingsService));
             }
         }
     }

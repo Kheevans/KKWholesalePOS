@@ -622,6 +622,55 @@ namespace KKWholesalePOS.Data.Migrations
                     b.ToTable("RegularSaleLines");
                 });
 
+            modelBuilder.Entity("KKWholesalePOS.Core.Models.Settings.BusinessSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("BusinessAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DateFormat")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DefaultMinimumStockLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EmailAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptFooter")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptHeader")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("ShowBusinessContactDetails")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BusinessSettings");
+                });
+
             modelBuilder.Entity("KKWholesalePOS.Core.Models.Consignment.Consignment", b =>
                 {
                     b.HasOne("KKWholesalePOS.Core.Models.Others.Customer", null)
