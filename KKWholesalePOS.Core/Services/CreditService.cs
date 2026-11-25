@@ -25,9 +25,9 @@ public class CreditService
     private readonly AuthorizationService _authorizationService;
     private readonly AuditLogService _auditLogService;
 
-    private const decimal DefaultCreditLimit = 100000m;
-    private const decimal CreditFeeRate = 0.05m;
-    private const int DefaultRepaymentDays = 14;
+    private const decimal DefaultCreditLimit = BusinessRules.DefaultCreditLimit;
+    private const decimal CreditFeeRate = BusinessRules.StandardFeeRate;
+    private const int DefaultRepaymentDays = BusinessRules.CreditRepaymentDays;
 
     private static readonly HashSet<string> AllowedPaymentMethods =
         new(StringComparer.OrdinalIgnoreCase)
@@ -93,6 +93,8 @@ public class CreditService
         bool hasOverdue = false;
         DateTime? activeDueDate = null;
 
+        DateTime today = DateTime.Now.Date;
+
         foreach (var sale in sales)
         {
             var payments = _repository.GetPaymentsByCreditSaleId(sale.Id);
@@ -107,7 +109,7 @@ public class CreditService
                 hasUnpaid = true;
                 activeDueDate = sale.DueDate;
 
-                if (DateTime.UtcNow.Date > sale.DueDate.Date)
+                if (today > sale.DueDate.ToLocalTime().Date)
                 {
                     hasOverdue = true;
                 }
@@ -171,10 +173,8 @@ public class CreditService
 
         foreach (int productId in requestedQuantities.Keys)
         {
-            var product = _repository.GetProductById(productId);
-
-            if (product == null)
-                throw new InvalidOperationException(
+            var product = _repository.GetProductById(productId)
+                ?? throw new InvalidOperationException(
                     $"Product with ID {productId} was not found.");
 
             if (requestedQuantities[productId] > product.StockQuantity)
@@ -286,10 +286,8 @@ public class CreditService
             throw new InvalidOperationException(
                 "Please select a valid payment method.");
 
-        var sale = _repository.GetById(creditSaleId);
-
-        if (sale == null)
-            throw new InvalidOperationException("Credit account not found.");
+        var sale = _repository.GetById(creditSaleId)
+            ?? throw new InvalidOperationException("Credit account not found.");
 
         var payments = _repository.GetPaymentsByCreditSaleId(creditSaleId);
         decimal paidAmount = payments.Sum(payment => payment.Amount);
@@ -341,7 +339,8 @@ public class CreditService
             throw new ArgumentException(
                 "Invalid credit sale ID.", nameof(creditSaleId));
 
-        if (string.IsNullOrWhiteSpace(reason))
+        string trimmedReason = reason?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedReason))
             throw new ArgumentException(
                 "A reason is required when modifying a credit balance.", nameof(reason));
 
@@ -353,10 +352,8 @@ public class CreditService
                 $"Credit amount must be between J$0.01 and J${DefaultCreditLimit:N2}, with no more than two decimal places.");
         }
 
-        var sale = _repository.GetById(creditSaleId);
-
-        if (sale == null)
-            throw new InvalidOperationException("Credit account not found.");
+        var sale = _repository.GetById(creditSaleId)
+            ?? throw new InvalidOperationException("Credit account not found.");
 
         if (sale.Lines.Count > 0)
         {
@@ -394,7 +391,7 @@ public class CreditService
             "CreditAmountModified",
             "CreditSale",
             creditSaleId.ToString(),
-            $"Purchase amount changed from J${oldAmount:N2} to J${newPurchaseAmount:N2}. Reason: {reason.Trim()}");
+            $"Purchase amount changed from J${oldAmount:N2} to J${newPurchaseAmount:N2}. Reason: {trimmedReason}");
     }
 
     public void ModifyPayment(
@@ -408,7 +405,8 @@ public class CreditService
             throw new ArgumentException(
                 "Invalid payment ID.", nameof(paymentId));
 
-        if (string.IsNullOrWhiteSpace(reason))
+        string trimmedReason = reason?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedReason))
             throw new ArgumentException(
                 "A reason is required when modifying a credit payment.", nameof(reason));
 
@@ -418,15 +416,11 @@ public class CreditService
                 "Payment amount must be greater than zero and have no more than two decimal places.");
         }
 
-        var payment = _repository.GetPaymentById(paymentId);
+        var payment = _repository.GetPaymentById(paymentId)
+            ?? throw new InvalidOperationException("Payment not found.");
 
-        if (payment == null)
-            throw new InvalidOperationException("Payment not found.");
-
-        var sale = _repository.GetById(payment.CreditSaleId);
-
-        if (sale == null)
-            throw new InvalidOperationException("Credit account not found.");
+        var sale = _repository.GetById(payment.CreditSaleId)
+            ?? throw new InvalidOperationException("Credit account not found.");
 
         var payments = _repository
             .GetPaymentsByCreditSaleId(payment.CreditSaleId);
@@ -452,6 +446,6 @@ public class CreditService
             "CreditPaymentModified",
             "CreditPayment",
             paymentId.ToString(),
-            $"Payment changed from J${oldAmount:N2} to J${newAmount:N2}. Reason: {reason.Trim()}");
+            $"Payment changed from J${oldAmount:N2} to J${newAmount:N2}. Reason: {trimmedReason}");
     }
 }

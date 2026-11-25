@@ -73,7 +73,7 @@ public class InventoryManagementService
         if (string.IsNullOrWhiteSpace(query))
             return _repository.GetAllProducts();
 
-        return _repository.SearchProducts(query);
+        return _repository.SearchProducts(query.Trim());
     }
 
     public List<Product> GetLowStockProducts()
@@ -88,15 +88,12 @@ public class InventoryManagementService
         return _repository.GetNegativeStockProducts();
     }
 
-    // Retrieve inventory records with available and outstanding stock quantities
     public List<InventoryRow> GetInventory(string searchTerm = "")
     {
         RequirePermission("Inventory.View");
-
         return _repository.GetInventory(searchTerm.Trim());
     }
 
-    // Calculate product counts and stock totals for the inventory overview
     public InventorySummary GetSummary()
     {
         return InventorySummary.FromRows(GetInventory());
@@ -112,7 +109,6 @@ public class InventoryManagementService
         return _repository.GetStockMovements(productId);
     }
 
-    // Retrieve stock movement history with product and user details
     public List<StockMovementRow> GetStockMovementHistory(int productId)
     {
         RequirePermission("Inventory.View");
@@ -138,6 +134,9 @@ public class InventoryManagementService
         var product = _repository.GetProductById(productId)
             ?? throw new InvalidOperationException("Product not found.");
 
+        if (product.MinimumStockLevel == minimumStockLevel)
+            return;
+
         int oldMinimum = product.MinimumStockLevel;
         _repository.UpdateMinimumStockLevel(productId, minimumStockLevel);
 
@@ -147,6 +146,115 @@ public class InventoryManagementService
             "Product",
             productId.ToString(),
             $"Minimum stock level for '{product.Name}' changed from {oldMinimum} to {minimumStockLevel}.");
+    }
+
+    public Product AddProduct(
+        string name,
+        string barcode,
+        decimal sellingPrice,
+        int unitsPerCase = 1,
+        int minimumStockLevel = 0,
+        int initialStock = 0)
+    {
+        int userId = RequirePermission("Inventory.Adjust");
+
+        string trimmedName = (name ?? string.Empty).Trim();
+        string trimmedBarcode = (barcode ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedName))
+            throw new ArgumentException("Product name is required.", nameof(name));
+
+        if (string.IsNullOrWhiteSpace(trimmedBarcode))
+            throw new ArgumentException("Barcode is required.", nameof(barcode));
+
+        if (sellingPrice < 0)
+            throw new ArgumentException("Selling price cannot be negative.", nameof(sellingPrice));
+
+        if (unitsPerCase <= 0)
+            throw new ArgumentException("Units per case must be greater than zero.", nameof(unitsPerCase));
+
+        if (minimumStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.", nameof(minimumStockLevel));
+
+        if (initialStock < 0)
+            throw new ArgumentException("Initial stock cannot be negative.", nameof(initialStock));
+
+        var product = new Product
+        {
+            Name = trimmedName,
+            Barcode = trimmedBarcode,
+            SellingPrice = decimal.Round(sellingPrice, 2, MidpointRounding.AwayFromZero),
+            UnitsPerCase = unitsPerCase,
+            MinimumStockLevel = minimumStockLevel,
+            StockQuantity = initialStock
+        };
+
+        int newId = _repository.AddProduct(product);
+        product.Id = newId;
+
+        _auditLogService.LogAction(
+            userId,
+            "ProductCreated",
+            "Product",
+            newId.ToString(),
+            $"Created product '{product.Name}' (Barcode: {product.Barcode}, Price: {product.SellingPrice:N2}, Units/Case: {product.UnitsPerCase}, Min: {product.MinimumStockLevel}, Stock: {product.StockQuantity}).");
+
+        return product;
+    }
+
+    public void UpdateProduct(
+        int productId,
+        string name,
+        string barcode,
+        decimal sellingPrice,
+        int unitsPerCase,
+        int minimumStockLevel)
+    {
+        int userId = RequirePermission("Inventory.Adjust");
+
+        if (productId <= 0)
+            throw new ArgumentException("Invalid product ID.", nameof(productId));
+
+        string trimmedName = (name ?? string.Empty).Trim();
+        string trimmedBarcode = (barcode ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmedName))
+            throw new ArgumentException("Product name is required.", nameof(name));
+
+        if (string.IsNullOrWhiteSpace(trimmedBarcode))
+            throw new ArgumentException("Barcode is required.", nameof(barcode));
+
+        if (sellingPrice < 0)
+            throw new ArgumentException("Selling price cannot be negative.", nameof(sellingPrice));
+
+        if (unitsPerCase <= 0)
+            throw new ArgumentException("Units per case must be greater than zero.", nameof(unitsPerCase));
+
+        if (minimumStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.", nameof(minimumStockLevel));
+
+        var existing = _repository.GetProductById(productId)
+            ?? throw new InvalidOperationException("Product not found.");
+
+        var updated = new Product
+        {
+            Id = productId,
+            Name = trimmedName,
+            Barcode = trimmedBarcode,
+            SellingPrice = decimal.Round(sellingPrice, 2, MidpointRounding.AwayFromZero),
+            UnitsPerCase = unitsPerCase,
+            MinimumStockLevel = minimumStockLevel,
+            StockQuantity = existing.StockQuantity
+        };
+
+        _repository.UpdateProduct(updated);
+
+        _auditLogService.LogAction(
+            userId,
+            "ProductUpdated",
+            "Product",
+            productId.ToString(),
+            $"Updated product '{updated.Name}' (Barcode: {updated.Barcode}, Price: {updated.SellingPrice:N2}, Units/Case: {updated.UnitsPerCase}, Min: {updated.MinimumStockLevel}).");
     }
 
     public async Task ReceiveStockAsync(
@@ -164,11 +272,13 @@ public class InventoryManagementService
                 "Received quantity must be greater than zero.",
                 nameof(quantity));
 
+        string? trimmedNotes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+
         await _repository.ReceiveStockAsync(
             productId,
             quantity,
             userId,
-            string.IsNullOrWhiteSpace(notes) ? null : notes.Trim());
+            trimmedNotes);
 
         _auditLogService.LogAction(
             userId,
@@ -176,7 +286,7 @@ public class InventoryManagementService
             "Product",
             productId.ToString(),
             $"Received {quantity} unit(s) for Product ID {productId}." +
-            (string.IsNullOrWhiteSpace(notes) ? string.Empty : $" Notes: {notes.Trim()}"));
+            (trimmedNotes == null ? string.Empty : $" Notes: {trimmedNotes}"));
     }
 
     public async Task AdjustStockAsync(

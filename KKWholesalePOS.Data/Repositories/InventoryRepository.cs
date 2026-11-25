@@ -37,9 +37,11 @@ public class InventoryRepository : IInventoryRepository
 
     public Product? GetProductByBarcode(string barcode)
     {
+        string normalized = barcode.Trim();
+
         return _dbContext.Products
             .AsNoTracking()
-            .FirstOrDefault(p => p.Barcode == barcode);
+            .FirstOrDefault(p => p.Barcode == normalized);
     }
 
     public List<Product> SearchProducts(string query)
@@ -73,7 +75,6 @@ public class InventoryRepository : IInventoryRepository
             .ToList();
     }
 
-    // Retrieve products with their available and outstanding stock quantities
     public List<InventoryRow> GetInventory(string searchTerm)
     {
         var products = string.IsNullOrWhiteSpace(searchTerm)
@@ -90,7 +91,6 @@ public class InventoryRepository : IInventoryRepository
             })
             .ToList();
 
-        // Calculate the total accepted returns for each consignment line
         var acceptedReturns = _dbContext.ConsignmentReturnLines
             .AsNoTracking()
             .GroupBy(line => line.ConsignmentLineId)
@@ -103,7 +103,6 @@ public class InventoryRepository : IInventoryRepository
                 line => line.ConsignmentLineId,
                 line => line.AcceptedQuantity);
 
-        // Calculate outstanding quantities and identify invalid consignment balances
         var consignmentBalances = consignmentLines
             .Select(line =>
             {
@@ -158,7 +157,6 @@ public class InventoryRepository : IInventoryRepository
             .ToList();
     }
 
-    // Retrieve stock movements with the associated product and username
     public List<StockMovementRow> GetStockMovementHistory(int productId)
     {
         return (
@@ -185,14 +183,141 @@ public class InventoryRepository : IInventoryRepository
 
     public void UpdateMinimumStockLevel(int productId, int minimumStockLevel)
     {
-        var product = _dbContext.Products.FirstOrDefault(p => p.Id == productId);
-
-        if (product == null)
-        {
-            throw new InvalidOperationException("Product not found.");
-        }
+        var product = _dbContext.Products.FirstOrDefault(p => p.Id == productId)
+            ?? throw new InvalidOperationException("Product not found.");
 
         product.MinimumStockLevel = minimumStockLevel;
+        _dbContext.SaveChanges();
+    }
+
+    public int AddProduct(Product product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+
+        string normalizedName = product.Name.Trim();
+        string normalizedBarcode = product.Barcode.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedName))
+            throw new ArgumentException("Product name is required.", nameof(product));
+
+        if (string.IsNullOrWhiteSpace(normalizedBarcode))
+            throw new ArgumentException("Barcode is required.", nameof(product));
+
+        if (product.SellingPrice < 0)
+            throw new ArgumentException("Selling price cannot be negative.", nameof(product));
+
+        if (product.StockQuantity < 0)
+            throw new ArgumentException("Initial stock quantity cannot be negative.", nameof(product));
+
+        if (product.UnitsPerCase <= 0)
+            throw new ArgumentException("Units per case must be greater than zero.", nameof(product));
+
+        if (product.MinimumStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.", nameof(product));
+
+        bool duplicateBarcode = _dbContext.Products
+            .Any(p => p.Barcode == normalizedBarcode);
+
+        if (duplicateBarcode)
+            throw new InvalidOperationException($"A product with barcode '{normalizedBarcode}' already exists.");
+
+        int initialStock = product.StockQuantity;
+
+        var entity = new Product
+        {
+            Name = normalizedName,
+            Barcode = normalizedBarcode,
+            SellingPrice = product.SellingPrice,
+            StockQuantity = initialStock > 0 ? 0 : initialStock,
+            UnitsPerCase = product.UnitsPerCase,
+            MinimumStockLevel = product.MinimumStockLevel
+        };
+
+        using var transaction = initialStock > 0
+            ? _dbContext.Database.BeginTransaction()
+            : null;
+
+        try
+        {
+            _dbContext.Products.Add(entity);
+            _dbContext.SaveChanges();
+
+            if (initialStock > 0)
+            {
+                int actorUserId = _dbContext.Users
+                    .AsNoTracking()
+                    .OrderBy(u => u.Id)
+                    .Select(u => u.Id)
+                    .FirstOrDefault();
+
+                if (actorUserId > 0)
+                {
+                    _inventoryService.ApplyStockChange(
+                        entity.Id,
+                        initialStock,
+                        actorUserId,
+                        InventoryService.StockReceived,
+                        "Initial product stock");
+                    _dbContext.SaveChanges();
+                }
+                else
+                {
+                    entity.StockQuantity = initialStock;
+                    _dbContext.SaveChanges();
+                }
+            }
+
+            transaction?.Commit();
+        }
+        catch
+        {
+            transaction?.Rollback();
+            throw;
+        }
+
+        return entity.Id;
+    }
+
+    public void UpdateProduct(Product product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+
+        if (product.Id <= 0)
+            throw new ArgumentException("Invalid product ID.", nameof(product));
+
+        string normalizedName = product.Name.Trim();
+        string normalizedBarcode = product.Barcode.Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedName))
+            throw new ArgumentException("Product name is required.", nameof(product));
+
+        if (string.IsNullOrWhiteSpace(normalizedBarcode))
+            throw new ArgumentException("Barcode is required.", nameof(product));
+
+        if (product.SellingPrice < 0)
+            throw new ArgumentException("Selling price cannot be negative.", nameof(product));
+
+        if (product.UnitsPerCase <= 0)
+            throw new ArgumentException("Units per case must be greater than zero.", nameof(product));
+
+        if (product.MinimumStockLevel < 0)
+            throw new ArgumentException("Minimum stock level cannot be negative.", nameof(product));
+
+        var existing = _dbContext.Products.FirstOrDefault(p => p.Id == product.Id)
+            ?? throw new InvalidOperationException("Product not found.");
+
+        bool duplicateBarcode = _dbContext.Products
+            .Any(p => p.Id != product.Id && p.Barcode == normalizedBarcode);
+
+        if (duplicateBarcode)
+            throw new InvalidOperationException($"Another product already uses barcode '{normalizedBarcode}'.");
+
+        existing.Name = normalizedName;
+        existing.Barcode = normalizedBarcode;
+        existing.SellingPrice = product.SellingPrice;
+        existing.UnitsPerCase = product.UnitsPerCase;
+        existing.MinimumStockLevel = product.MinimumStockLevel;
+
         _dbContext.SaveChanges();
     }
 

@@ -1,5 +1,4 @@
-﻿
-using KKWholesalePOS.Core.Interfaces;
+﻿using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Others;
 
 namespace KKWholesalePOS.Core.Services;
@@ -19,11 +18,16 @@ public class InitialSetupService
         PermissionManagementService permissionManagementService,
         AuditLogService auditLogService)
     {
-        _userRepository = userRepository;
-        _userManagementService = userManagementService;
-        _roleManagementService = roleManagementService;
-        _permissionManagementService = permissionManagementService;
-        _auditLogService = auditLogService;
+        _userRepository = userRepository ??
+            throw new ArgumentNullException(nameof(userRepository));
+        _userManagementService = userManagementService ??
+            throw new ArgumentNullException(nameof(userManagementService));
+        _roleManagementService = roleManagementService ??
+            throw new ArgumentNullException(nameof(roleManagementService));
+        _permissionManagementService = permissionManagementService ??
+            throw new ArgumentNullException(nameof(permissionManagementService));
+        _auditLogService = auditLogService ??
+            throw new ArgumentNullException(nameof(auditLogService));
     }
 
     public User CreateInitialAdministrator(
@@ -47,6 +51,8 @@ public class InitialSetupService
         _roleManagementService.AssignInitialRoleToUser(
             user.Id,
             ownerRole.Id);
+
+        EnsureDefaultPermissions();
 
         _auditLogService.LogAction(
             user.Id,
@@ -97,7 +103,6 @@ public class InitialSetupService
             }
         }
 
-        // Give the Owner role all default permissions.
         var ownerRole = _roleManagementService.GetAllRolesForInitialSetup()
             .FirstOrDefault(r => r.Name.Equals(
                 "Owner",

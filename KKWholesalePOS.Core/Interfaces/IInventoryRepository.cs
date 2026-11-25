@@ -24,6 +24,10 @@ public interface IInventoryRepository
 
     void UpdateMinimumStockLevel(int productId, int minimumStockLevel);
 
+    int AddProduct(Product product);
+
+    void UpdateProduct(Product product);
+
     Task ReceiveStockAsync(
         int productId,
         int quantity,

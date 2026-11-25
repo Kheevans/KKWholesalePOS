@@ -17,10 +17,14 @@ public class BusinessSettingsService
         AuthorizationService authorizationService,
         AuditLogService auditLogService)
     {
-        _repository = repository;
-        _userSession = userSession;
-        _authorizationService = authorizationService;
-        _auditLogService = auditLogService;
+        _repository = repository ??
+            throw new ArgumentNullException(nameof(repository));
+        _userSession = userSession ??
+            throw new ArgumentNullException(nameof(userSession));
+        _authorizationService = authorizationService ??
+            throw new ArgumentNullException(nameof(authorizationService));
+        _auditLogService = auditLogService ??
+            throw new ArgumentNullException(nameof(auditLogService));
     }
 
     public BusinessSettings GetSettings()
@@ -28,14 +32,12 @@ public class BusinessSettingsService
         RequirePermission("Settings.Manage");
 
         var settings = _repository.GetSettings();
-
         if (settings != null)
         {
             return settings;
         }
 
         settings = new BusinessSettings();
-
         _repository.Add(settings);
         _repository.SaveChanges();
 
@@ -46,15 +48,15 @@ public class BusinessSettingsService
     {
         RequirePermission("Settings.Manage");
 
-        if (settings == null)
-        {
-            throw new ArgumentNullException(nameof(settings));
-        }
+        ArgumentNullException.ThrowIfNull(settings);
 
-        if (string.IsNullOrWhiteSpace(settings.BusinessName))
+        string businessName = settings.BusinessName?.Trim() ?? string.Empty;
+        string currencyCode = settings.CurrencyCode?.Trim() ?? string.Empty;
+        string dateFormat = settings.DateFormat?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(businessName))
         {
-            throw new ArgumentException(
-                "Business name is required.");
+            throw new ArgumentException("Business name is required.");
         }
 
         if (settings.DefaultMinimumStockLevel < 0)
@@ -63,17 +65,33 @@ public class BusinessSettingsService
                 "Default minimum stock level cannot be negative.");
         }
 
-        if (string.IsNullOrWhiteSpace(settings.CurrencyCode))
+        if (string.IsNullOrWhiteSpace(currencyCode))
         {
-            throw new ArgumentException(
-                "Currency code is required.");
+            throw new ArgumentException("Currency code is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(settings.DateFormat))
+        if (string.IsNullOrWhiteSpace(dateFormat))
         {
-            throw new ArgumentException(
-                "Date format is required.");
+            throw new ArgumentException("Date format is required.");
         }
+
+        var existing = _repository.GetSettings();
+        if (existing == null)
+        {
+            existing = new BusinessSettings();
+            _repository.Add(existing);
+        }
+
+        existing.BusinessName = businessName;
+        existing.BusinessAddress = settings.BusinessAddress?.Trim() ?? string.Empty;
+        existing.PhoneNumber = settings.PhoneNumber?.Trim() ?? string.Empty;
+        existing.EmailAddress = settings.EmailAddress?.Trim() ?? string.Empty;
+        existing.ReceiptHeader = settings.ReceiptHeader?.Trim() ?? string.Empty;
+        existing.ReceiptFooter = settings.ReceiptFooter?.Trim() ?? string.Empty;
+        existing.ShowBusinessContactDetails = settings.ShowBusinessContactDetails;
+        existing.CurrencyCode = currencyCode;
+        existing.DateFormat = dateFormat;
+        existing.DefaultMinimumStockLevel = settings.DefaultMinimumStockLevel;
 
         _repository.SaveChanges();
 
@@ -81,8 +99,8 @@ public class BusinessSettingsService
             _userSession.CurrentUser?.Id,
             "BusinessSettingsUpdated",
             "BusinessSettings",
-            settings.Id.ToString(),
-            $"Business settings updated for '{settings.BusinessName}'.");
+            existing.Id.ToString(),
+            $"Business settings updated for '{existing.BusinessName}'.");
     }
 
     private void RequirePermission(string permissionName)
@@ -90,9 +108,7 @@ public class BusinessSettingsService
         User? currentUser = _userSession.CurrentUser;
 
         if (currentUser == null ||
-            !_authorizationService.HasPermission(
-                currentUser,
-                permissionName))
+            !_authorizationService.HasPermission(currentUser, permissionName))
         {
             throw new UnauthorizedAccessException(
                 $"You do not have permission to perform this action. Required permission: {permissionName}");

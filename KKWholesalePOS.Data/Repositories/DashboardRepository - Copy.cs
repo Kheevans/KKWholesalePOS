@@ -1,7 +1,6 @@
-﻿
+﻿using KKWholesalePOS.Core;
 using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Models.Dashboard;
-using KKWholesalePOS.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace KKWholesalePOS.Data.Repositories;
@@ -12,7 +11,8 @@ public class DashboardRepository : IDashboardRepository
 
     public DashboardRepository(AppDbContext dbContext)
     {
-        _dbContext = dbContext;
+        _dbContext = dbContext ??
+            throw new ArgumentNullException(nameof(dbContext));
     }
 
     public DashboardSummary GetDashboardSummary()
@@ -31,39 +31,32 @@ public class DashboardRepository : IDashboardRepository
         var summary = new DashboardSummary
         {
             TotalProducts = _dbContext.Products.Count(),
-
             TotalCustomers = _dbContext.Customers.Count(),
-
             LowStockProducts = _dbContext.Products.Count(
                 p => p.StockQuantity > 0 &&
                 p.StockQuantity <= p.MinimumStockLevel),
-
             OutOfStockProducts = _dbContext.Products.Count(
                 p => p.StockQuantity == 0)
         };
 
-        // Today's completed sales
         var todaysSales = _dbContext.RegularSales
             .AsNoTracking()
             .Where(s =>
                 s.CompletedAt >= startUtc &&
                 s.CompletedAt < endUtc)
-            .Select(s => new
-            {
-                s.Total
-            })
+            .Select(s => new { s.Total })
             .ToList();
 
         summary.SalesToday = todaysSales.Sum(s => s.Total);
         summary.TransactionsToday = todaysSales.Count;
 
-        // Outstanding credit
         var creditSales = _dbContext.CreditSales
             .AsNoTracking()
             .Select(s => new
             {
                 s.Id,
                 s.IssuedAt,
+                s.DueDate,
                 s.PurchaseAmount,
                 s.CreditFee
             })
@@ -86,20 +79,17 @@ public class DashboardRepository : IDashboardRepository
 
         foreach (var sale in creditSales)
         {
-            creditPaymentTotals.TryGetValue(
-                sale.Id, out decimal payments);
+            creditPaymentTotals.TryGetValue(sale.Id, out decimal payments);
 
-            decimal balance =
-                sale.PurchaseAmount + sale.CreditFee - payments;
+            decimal balance = sale.PurchaseAmount + sale.CreditFee - payments;
 
             if (balance > 0)
             {
                 summary.OutstandingCreditBalance += balance;
 
-                DateTime dueDate = sale.IssuedAt
-                    .ToLocalTime()
-                    .Date
-                    .AddDays(14);
+                DateTime dueDate = sale.DueDate != default
+                    ? sale.DueDate.ToLocalTime().Date
+                    : sale.IssuedAt.ToLocalTime().Date.AddDays(BusinessRules.CreditRepaymentDays);
 
                 if (today > dueDate)
                 {
@@ -108,7 +98,6 @@ public class DashboardRepository : IDashboardRepository
             }
         }
 
-        // Outstanding consignments
         var consignments = _dbContext.Consignments
             .AsNoTracking()
             .Select(c => new
@@ -119,22 +108,20 @@ public class DashboardRepository : IDashboardRepository
             })
             .ToList();
 
-        var consignmentIds = consignments
-            .Select(c => c.Id)
-            .ToList();
+        var consignmentIds = consignments.Select(c => c.Id).ToList();
 
-        var acceptedReturns = (
-            from line in _dbContext.ConsignmentReturnLines.AsNoTracking()
-            join header in _dbContext.ConsignmentReturns.AsNoTracking()
-                on line.ConsignmentReturnId equals header.Id
-            where consignmentIds.Contains(header.ConsignmentId)
-            select new
-            {
-                header.ConsignmentId,
-                AcceptedValue =
-                    (decimal)line.QuantityAccepted * line.UnitPrice
-            })
-            .ToList();
+        var acceptedReturns = consignmentIds.Count == 0
+            ? new[] { new { ConsignmentId = 0, AcceptedValue = 0m } }.Take(0).ToList()
+            : (
+                from line in _dbContext.ConsignmentReturnLines.AsNoTracking()
+                join header in _dbContext.ConsignmentReturns.AsNoTracking()
+                    on line.ConsignmentReturnId equals header.Id
+                where consignmentIds.Contains(header.ConsignmentId)
+                select new
+                {
+                    header.ConsignmentId,
+                    AcceptedValue = (decimal)line.QuantityAccepted * line.UnitPrice
+                }).ToList();
 
         var returnTotals = acceptedReturns
             .GroupBy(r => r.ConsignmentId)
@@ -142,14 +129,17 @@ public class DashboardRepository : IDashboardRepository
                 group => group.Key,
                 group => group.Sum(r => r.AcceptedValue));
 
-        var consignmentPayments = _dbContext.ConsignmentPayments
-            .AsNoTracking()
-            .Select(p => new
-            {
-                p.ConsignmentId,
-                p.Amount
-            })
-            .ToList();
+        var consignmentPayments = consignmentIds.Count == 0
+            ? new[] { new { ConsignmentId = 0, Amount = 0m } }.Take(0).ToList()
+            : _dbContext.ConsignmentPayments
+                .AsNoTracking()
+                .Where(p => consignmentIds.Contains(p.ConsignmentId))
+                .Select(p => new
+                {
+                    p.ConsignmentId,
+                    p.Amount
+                })
+                .ToList();
 
         var paymentTotals = consignmentPayments
             .GroupBy(p => p.ConsignmentId)
@@ -159,11 +149,8 @@ public class DashboardRepository : IDashboardRepository
 
         foreach (var consignment in consignments)
         {
-            returnTotals.TryGetValue(
-                consignment.Id, out decimal acceptedValue);
-
-            paymentTotals.TryGetValue(
-                consignment.Id, out decimal payments);
+            returnTotals.TryGetValue(consignment.Id, out decimal acceptedValue);
+            paymentTotals.TryGetValue(consignment.Id, out decimal payments);
 
             decimal balance =
                 consignment.OriginalGoodsValue
