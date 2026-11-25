@@ -39,10 +39,10 @@ public class UserRepository : IUserRepository
             .FirstOrDefault(u => u.Id == userId);
     }
 
-    public bool HasAnyUsers()
-    {
-        return _dbContext.Users.Any();
-    }
+        public bool HasAnyUsers()
+        {
+            return _dbContext.Users.Any();
+        }
 
     public void Add(User user)
     {

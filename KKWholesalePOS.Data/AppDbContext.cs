@@ -41,7 +41,7 @@ public class AppDbContext : DbContext
 
 
     protected override void OnConfiguring(
-        DbContextOptionsBuilder optionsBuilder)
+            DbContextOptionsBuilder optionsBuilder)
     {
         if (!optionsBuilder.IsConfigured)
         {
@@ -54,8 +54,21 @@ public class AppDbContext : DbContext
 
             string dbPath = Path.Combine(
                 folder, "kkwholesale.db");
+
+            bool dbExists = File.Exists(dbPath);
+
             optionsBuilder.UseSqlite(
                 $"Data Source={dbPath}");
+
+            if (!dbExists)
+            {
+                var initOptions = new DbContextOptionsBuilder<AppDbContext>()
+                    .UseSqlite($"Data Source={dbPath}")
+                    .Options;
+
+                using var initContext = new AppDbContext(initOptions);
+                initContext.Database.EnsureCreated(); // or initContext.Database.Migrate();
+            }
         }
     }
 
