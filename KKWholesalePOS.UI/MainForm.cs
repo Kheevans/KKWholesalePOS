@@ -51,7 +51,7 @@ namespace KKWholesalePOS.UI
         private readonly ConsignmentReturnService _consignmentReturnService;
         private readonly InventoryManagementService _inventoryManagementService;
         private readonly CustomerManagementService _customerManagementService;
-
+        private readonly ConsignmentIssueService _consignmentIssueService;
         // ==========================================
         // Shared UI Styling
         // ==========================================
@@ -183,7 +183,28 @@ namespace KKWholesalePOS.UI
         private Button _btnRecordConsignmentPayment = null!;
         private IReadOnlyList<Customer> _allConsignmentCustomers = Array.Empty<Customer>();
         private ConsignmentReturnView? _currentConsignmentView;
-
+        // ==========================================
+        // Consignment Issue Controls
+        // ==========================================
+        private TabPage _tabConsignmentIssue = null!;
+        private TextBox _txtIssueCustomerSearch = null!;
+        private ComboBox _cmbIssueCustomer = null!;
+        private TextBox _txtIssueProductSearch = null!;
+        private ComboBox _cmbIssueProduct = null!;
+        private Label _lblIssueProductStock = null!;
+        private NumericUpDown _nudIssueQuantity = null!;
+        private NumericUpDown _nudIssueUnitPrice = null!;
+        private Button _btnAddIssueLine = null!;
+        private Button _btnRemoveIssueLine = null!;
+        private DataGridView _dgvIssueConsignmentLines = null!;
+        private Label _lblIssueGoodsValue = null!;
+        private Label _lblIssueFeeValue = null!;
+        private Label _lblIssueTotalDueValue = null!;
+        private Button _btnClearIssueLines = null!;
+        private Button _btnSubmitIssueConsignment = null!;
+        private IReadOnlyList<Customer> _allIssueCustomers = Array.Empty<Customer>();
+        private List<InventoryRow> _allIssueProducts = new();
+        private readonly List<(int ProductId, string ProductName, string Barcode, int Quantity, decimal UnitPrice)> _issueCart = new();
         // ==========================================
         // Inventory Controls
         // ==========================================
@@ -234,6 +255,7 @@ namespace KKWholesalePOS.UI
             BusinessSettingsService businessSettingsService,
             CreditService creditService,
             ConsignmentReturnService consignmentReturnService,
+            ConsignmentIssueService consignmentIssueService,
             InventoryManagementService inventoryManagementService)
         {
             InitializeComponent();
@@ -253,6 +275,7 @@ namespace KKWholesalePOS.UI
             _businessSettingsService = businessSettingsService ?? throw new ArgumentNullException(nameof(businessSettingsService));
             _creditService = creditService ?? throw new ArgumentNullException(nameof(creditService));
             _consignmentReturnService = consignmentReturnService ?? throw new ArgumentNullException(nameof(consignmentReturnService));
+            _consignmentIssueService = consignmentIssueService ?? throw new ArgumentNullException(nameof(consignmentIssueService));
             _inventoryManagementService = inventoryManagementService ?? throw new ArgumentNullException(nameof(inventoryManagementService));
 
             this.FormClosing += MainForm_FormClosing;
@@ -263,6 +286,7 @@ namespace KKWholesalePOS.UI
             ConfigureCustomersLayout();
             ConfigureSettingsLayout();
             ConfigureConsignmentReturnsTab();
+            ConfigureConsignmentIssueTab();
             ConfigureInventoryLayout();
             ConfigureSalesLayout();
 
@@ -3875,6 +3899,22 @@ namespace KKWholesalePOS.UI
             }
 
             ApplyInventoryPermissions();
+
+            bool canIssueConsignment = HasPermission("Consignments.Issue");
+            bool canReturnConsignment = HasPermission("Consignments.Return");
+            btnConsignments.Enabled = canIssueConsignment || canReturnConsignment;
+
+            if (_tabConsignmentIssue != null)
+                _tabConsignmentIssue.Enabled = canIssueConsignment;
+
+            if (tabConsignmentReturns != null)
+                tabConsignmentReturns.Enabled = canReturnConsignment;
+
+            if (!canIssueConsignment && canReturnConsignment &&
+                tabConsignmentReturns?.Parent is TabControl consignmentTabs)
+            {
+                consignmentTabs.SelectedTab = tabConsignmentReturns;
+            }
         }
 
         private void ShowPage(
@@ -3918,6 +3958,7 @@ namespace KKWholesalePOS.UI
             }
             else if (pageTitle == "Consignments")
             {
+                LoadConsignmentIssueData();
                 LoadConsignmentCustomers();
             }
 
@@ -6406,6 +6447,593 @@ namespace KKWholesalePOS.UI
 
             dialog.ShowDialog(this);
         }
+
+        private void ConfigureConsignmentIssueTab()
+        {
+            if (tabConsignmentReturns?.Parent is not TabControl tabControl)
+                return;
+
+            _tabConsignmentIssue = new TabPage("Issue Consignment")
+            {
+                Name = "tabConsignmentIssue",
+                BackColor = Color.White
+            };
+
+            if (!tabControl.TabPages.Contains(_tabConsignmentIssue))
+            {
+                tabControl.TabPages.Insert(0, _tabConsignmentIssue);
+            }
+            tabControl.SelectedTab = _tabConsignmentIssue;
+
+            string currency = GetCurrencyPrefix();
+
+            var layout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(15),
+                BackColor = Color.White
+            };
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 108F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+            layout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110F));
+
+            // Row 0: Customer selection + Product line builder
+            var topPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(249, 250, 251),
+                Padding = new Padding(10)
+            };
+
+            var customerRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 40,
+                WrapContents = false
+            };
+
+            _txtIssueCustomerSearch = new TextBox
+            {
+                Width = 180,
+                PlaceholderText = "Search customer or phone..."
+            };
+
+            _cmbIssueCustomer = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 260
+            };
+
+            customerRow.Controls.Add(new Label
+            {
+                Text = "Customer:",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Margin = new Padding(0, 6, 8, 0)
+            });
+            customerRow.Controls.Add(_txtIssueCustomerSearch);
+            customerRow.Controls.Add(_cmbIssueCustomer);
+
+            var productRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 44,
+                WrapContents = false
+            };
+
+            _txtIssueProductSearch = new TextBox
+            {
+                Width = 160,
+                PlaceholderText = "Name or barcode..."
+            };
+
+            _cmbIssueProduct = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 230
+            };
+
+            _lblIssueProductStock = new Label
+            {
+                Text = "Available: 0",
+                AutoSize = true,
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Margin = new Padding(6, 6, 10, 0)
+            };
+
+            _nudIssueQuantity = new NumericUpDown
+            {
+                Minimum = 1,
+                Maximum = 100000,
+                Value = 1,
+                Width = 75
+            };
+
+            _nudIssueUnitPrice = new NumericUpDown
+            {
+                DecimalPlaces = 2,
+                Minimum = 0m,
+                Maximum = 100000000m,
+                ThousandsSeparator = true,
+                Width = 105
+            };
+
+            _btnAddIssueLine = new Button
+            {
+                Text = "Add Item",
+                Width = 95,
+                Height = 30,
+                BackColor = _selectedButtonColor,
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(8, 0, 0, 0)
+            };
+            _btnAddIssueLine.FlatAppearance.BorderSize = 0;
+
+            _btnRemoveIssueLine = new Button
+            {
+                Text = "Remove Selected",
+                Width = 125,
+                Height = 30,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(6, 0, 0, 0)
+            };
+
+            productRow.Controls.Add(new Label
+            {
+                Text = "Product:",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Margin = new Padding(0, 6, 8, 0)
+            });
+            productRow.Controls.Add(_txtIssueProductSearch);
+            productRow.Controls.Add(_cmbIssueProduct);
+            productRow.Controls.Add(_lblIssueProductStock);
+            productRow.Controls.Add(new Label
+            {
+                Text = "Qty:",
+                AutoSize = true,
+                Margin = new Padding(4, 6, 4, 0)
+            });
+            productRow.Controls.Add(_nudIssueQuantity);
+            productRow.Controls.Add(new Label
+            {
+                Text = $"Price ({currency}):",
+                AutoSize = true,
+                Margin = new Padding(8, 6, 4, 0)
+            });
+            productRow.Controls.Add(_nudIssueUnitPrice);
+            productRow.Controls.Add(_btnAddIssueLine);
+            productRow.Controls.Add(_btnRemoveIssueLine);
+
+            topPanel.Controls.Add(productRow);
+            topPanel.Controls.Add(customerRow);
+
+            // Row 1: Consignment lines grid
+            _dgvIssueConsignmentLines = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                RowHeadersVisible = false,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                MultiSelect = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White
+            };
+            _dgvIssueConsignmentLines.Columns.Add("ProductId", "ID");
+            _dgvIssueConsignmentLines.Columns.Add("Barcode", "Barcode");
+            _dgvIssueConsignmentLines.Columns.Add("ProductName", "Product");
+            _dgvIssueConsignmentLines.Columns.Add("Quantity", "Qty");
+            _dgvIssueConsignmentLines.Columns.Add("UnitPrice", $"Unit Price ({currency})");
+            _dgvIssueConsignmentLines.Columns.Add("LineTotal", $"Line Total ({currency})");
+
+            _dgvIssueConsignmentLines.Columns["ProductId"]!.Visible = false;
+
+            // Row 2: Totals + Submit / Clear actions
+            var bottomPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                BackColor = Color.FromArgb(249, 250, 251),
+                Padding = new Padding(12)
+            };
+
+            var totalsRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 34,
+                WrapContents = false
+            };
+
+            _lblIssueGoodsValue = new Label
+            {
+                Text = $"Goods Value: {currency}0.00",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10.5F, FontStyle.Bold),
+                Margin = new Padding(0, 4, 24, 0)
+            };
+
+            _lblIssueFeeValue = new Label
+            {
+                Text = $"Consignment Fee ({ConsignmentSettlementCalculator.FeeRate:P0}): {currency}0.00",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 10.5F),
+                ForeColor = Color.FromArgb(75, 85, 99),
+                Margin = new Padding(0, 4, 24, 0)
+            };
+
+            _lblIssueTotalDueValue = new Label
+            {
+                Text = $"Max Balance (if none returned): {currency}0.00",
+                AutoSize = true,
+                Font = new Font("Segoe UI", 11F, FontStyle.Bold),
+                ForeColor = Color.FromArgb(17, 24, 39),
+                Margin = new Padding(0, 3, 0, 0)
+            };
+
+            totalsRow.Controls.Add(_lblIssueGoodsValue);
+            totalsRow.Controls.Add(_lblIssueFeeValue);
+            totalsRow.Controls.Add(_lblIssueTotalDueValue);
+
+            var actionRow = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 44,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents = false
+            };
+
+            _btnSubmitIssueConsignment = new Button
+            {
+                Text = "Issue Consignment",
+                Width = 175,
+                Height = 36,
+                BackColor = Color.FromArgb(22, 163, 74),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI", 9.5F, FontStyle.Bold),
+                Cursor = Cursors.Hand
+            };
+            _btnSubmitIssueConsignment.FlatAppearance.BorderSize = 0;
+
+            _btnClearIssueLines = new Button
+            {
+                Text = "Clear Items",
+                Width = 115,
+                Height = 36,
+                Margin = new Padding(0, 0, 10, 0),
+                Cursor = Cursors.Hand
+            };
+
+            actionRow.Controls.Add(_btnSubmitIssueConsignment);
+            actionRow.Controls.Add(_btnClearIssueLines);
+
+            bottomPanel.Controls.Add(totalsRow);
+            bottomPanel.Controls.Add(actionRow);
+
+            layout.Controls.Add(topPanel, 0, 0);
+            layout.Controls.Add(_dgvIssueConsignmentLines, 0, 1);
+            layout.Controls.Add(bottomPanel, 0, 2);
+            _tabConsignmentIssue.Controls.Add(layout);
+
+            WireConsignmentIssueEvents();
+            RefreshIssueConsignmentGrid();
+        }
+
+        private void WireConsignmentIssueEvents()
+        {
+            _txtIssueCustomerSearch.TextChanged += (_, _) =>
+                FilterIssueCustomers(_txtIssueCustomerSearch.Text);
+
+            _txtIssueProductSearch.TextChanged += (_, _) =>
+                FilterIssueProducts(_txtIssueProductSearch.Text);
+
+            _cmbIssueProduct.SelectedIndexChanged += (_, _) => UpdateSelectedIssueProductDetails();
+            _btnAddIssueLine.Click += (_, _) => AddConsignmentIssueLine();
+            _btnRemoveIssueLine.Click += (_, _) => RemoveSelectedConsignmentIssueLine();
+            _btnClearIssueLines.Click += (_, _) => ClearConsignmentIssueForm(clearCustomer: false);
+            _btnSubmitIssueConsignment.Click += async (_, _) => await SubmitConsignmentIssueAsync();
+        }
+
+        private void LoadConsignmentIssueData()
+        {
+            _allIssueCustomers = _customerRepository.GetAll()
+                .Where(c => c.IsActive)
+                .ToList();
+            FilterIssueCustomers(_txtIssueCustomerSearch.Text);
+
+            try
+            {
+                _allIssueProducts = _inventoryManagementService.GetInventory()
+                    .Where(p => p.AvailableStock > 0)
+                    .ToList();
+            }
+            catch
+            {
+                _allIssueProducts = new List<InventoryRow>();
+            }
+
+            FilterIssueProducts(_txtIssueProductSearch.Text);
+        }
+
+        private void FilterIssueCustomers(string searchText)
+        {
+            int? previousId = _cmbIssueCustomer.SelectedValue as int?;
+            string term = searchText?.Trim() ?? string.Empty;
+
+            var filtered = string.IsNullOrEmpty(term)
+                ? _allIssueCustomers.ToList()
+                : _allIssueCustomers
+                    .Where(c =>
+                        c.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrWhiteSpace(c.PhoneNumber) &&
+                         c.PhoneNumber.Contains(term, StringComparison.OrdinalIgnoreCase)) ||
+                        c.Id.ToString() == term)
+                    .ToList();
+
+            _cmbIssueCustomer.DataSource = null;
+            _cmbIssueCustomer.DisplayMember = nameof(Customer.Name);
+            _cmbIssueCustomer.ValueMember = nameof(Customer.Id);
+            _cmbIssueCustomer.DataSource = filtered;
+
+            if (filtered.Count == 0)
+            {
+                _cmbIssueCustomer.SelectedIndex = -1;
+            }
+            else if (previousId.HasValue && filtered.Any(c => c.Id == previousId.Value))
+            {
+                _cmbIssueCustomer.SelectedValue = previousId.Value;
+            }
+            else if (!string.IsNullOrEmpty(term))
+            {
+                _cmbIssueCustomer.SelectedIndex = 0;
+            }
+            else
+            {
+                _cmbIssueCustomer.SelectedIndex = -1;
+            }
+        }
+
+        private void FilterIssueProducts(string searchText)
+        {
+            int? previousProductId = (_cmbIssueProduct.SelectedItem as InventoryRow)?.ProductId;
+            string term = searchText?.Trim() ?? string.Empty;
+
+            var filtered = string.IsNullOrEmpty(term)
+                ? _allIssueProducts.ToList()
+                : _allIssueProducts
+                    .Where(p =>
+                        p.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                        p.Barcode.Contains(term, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            _cmbIssueProduct.DataSource = null;
+            _cmbIssueProduct.DisplayMember = nameof(InventoryRow.ProductName);
+            _cmbIssueProduct.ValueMember = nameof(InventoryRow.ProductId);
+            _cmbIssueProduct.DataSource = filtered;
+
+            if (filtered.Count == 0)
+            {
+                _cmbIssueProduct.SelectedIndex = -1;
+            }
+            else if (previousProductId.HasValue && filtered.Any(p => p.ProductId == previousProductId.Value))
+            {
+                _cmbIssueProduct.SelectedValue = previousProductId.Value;
+            }
+            else
+            {
+                _cmbIssueProduct.SelectedIndex = 0;
+            }
+
+            UpdateSelectedIssueProductDetails();
+        }
+
+        private void UpdateSelectedIssueProductDetails()
+        {
+            if (_cmbIssueProduct.SelectedItem is not InventoryRow product)
+            {
+                _lblIssueProductStock.Text = "Available: 0";
+                _nudIssueUnitPrice.Value = 0m;
+                return;
+            }
+
+            int inCart = _issueCart
+                .Where(x => x.ProductId == product.ProductId)
+                .Sum(x => x.Quantity);
+            int remainingAvailable = Math.Max(0, product.AvailableStock - inCart);
+
+            _lblIssueProductStock.Text = $"Available: {remainingAvailable:N0}";
+            _nudIssueUnitPrice.Value = Math.Clamp(product.SellingPrice, 0m, _nudIssueUnitPrice.Maximum);
+        }
+
+        private void AddConsignmentIssueLine()
+        {
+            if (_cmbIssueProduct.SelectedItem is not InventoryRow product)
+            {
+                MessageBox.Show(this, "Please select a product.", "Issue Consignment",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int qtyToAdd = (int)_nudIssueQuantity.Value;
+            decimal unitPrice = Math.Round(_nudIssueUnitPrice.Value, 2, MidpointRounding.AwayFromZero);
+
+            if (qtyToAdd <= 0)
+            {
+                MessageBox.Show(this, "Quantity must be greater than zero.", "Issue Consignment",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            int existingIndex = _issueCart.FindIndex(x => x.ProductId == product.ProductId);
+            int existingQty = existingIndex >= 0 ? _issueCart[existingIndex].Quantity : 0;
+
+            if (existingQty + qtyToAdd > product.AvailableStock)
+            {
+                MessageBox.Show(
+                    this,
+                    $"Only {product.AvailableStock:N0} unit(s) of '{product.ProductName}' are available.",
+                    "Stock Limit",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (existingIndex >= 0)
+            {
+                _issueCart[existingIndex] = (
+                    product.ProductId,
+                    product.ProductName,
+                    product.Barcode,
+                    existingQty + qtyToAdd,
+                    unitPrice);
+            }
+            else
+            {
+                _issueCart.Add((
+                    product.ProductId,
+                    product.ProductName,
+                    product.Barcode,
+                    qtyToAdd,
+                    unitPrice));
+            }
+
+            _nudIssueQuantity.Value = 1;
+            RefreshIssueConsignmentGrid();
+            UpdateSelectedIssueProductDetails();
+        }
+
+        private void RemoveSelectedConsignmentIssueLine()
+        {
+            if (_dgvIssueConsignmentLines.CurrentRow == null)
+                return;
+
+            int productId = Convert.ToInt32(_dgvIssueConsignmentLines.CurrentRow.Cells["ProductId"].Value);
+            _issueCart.RemoveAll(x => x.ProductId == productId);
+
+            RefreshIssueConsignmentGrid();
+            UpdateSelectedIssueProductDetails();
+        }
+
+        private void RefreshIssueConsignmentGrid()
+        {
+            _dgvIssueConsignmentLines.Rows.Clear();
+            decimal goodsValue = 0m;
+
+            foreach (var item in _issueCart)
+            {
+                decimal lineTotal = Math.Round(item.Quantity * item.UnitPrice, 2, MidpointRounding.AwayFromZero);
+                goodsValue += lineTotal;
+
+                _dgvIssueConsignmentLines.Rows.Add(
+                    item.ProductId,
+                    item.Barcode,
+                    item.ProductName,
+                    item.Quantity,
+                    item.UnitPrice.ToString("N2"),
+                    lineTotal.ToString("N2"));
+            }
+
+            goodsValue = Math.Round(goodsValue, 2, MidpointRounding.AwayFromZero);
+            decimal fee = Math.Round(
+                goodsValue * ConsignmentSettlementCalculator.FeeRate,
+                2,
+                MidpointRounding.AwayFromZero);
+            decimal totalDue = goodsValue + fee;
+
+            string currency = GetCurrencyPrefix();
+            _lblIssueGoodsValue.Text = $"Goods Value: {currency}{goodsValue:N2}";
+            _lblIssueFeeValue.Text = $"Consignment Fee ({ConsignmentSettlementCalculator.FeeRate:P0}): {currency}{fee:N2}";
+            _lblIssueTotalDueValue.Text = $"Max Balance (if none returned): {currency}{totalDue:N2}";
+            _btnSubmitIssueConsignment.Enabled = _issueCart.Count > 0;
+        }
+
+        private void ClearConsignmentIssueForm(bool clearCustomer)
+        {
+            _issueCart.Clear();
+            _nudIssueQuantity.Value = 1;
+
+            if (clearCustomer)
+            {
+                _txtIssueCustomerSearch.Clear();
+                _cmbIssueCustomer.SelectedIndex = -1;
+            }
+
+            RefreshIssueConsignmentGrid();
+            UpdateSelectedIssueProductDetails();
+        }
+
+        private async Task SubmitConsignmentIssueAsync()
+        {
+            if (!RequirePermission("Consignments.Issue"))
+                return;
+
+            if (_cmbIssueCustomer.SelectedValue is not int customerId || customerId <= 0)
+            {
+                MessageBox.Show(this, "Please select a customer before issuing a consignment.",
+                    "Customer Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                _cmbIssueCustomer.Focus();
+                return;
+            }
+
+            if (_issueCart.Count == 0)
+            {
+                MessageBox.Show(this, "Please add at least one product to the consignment.",
+                    "Items Required", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string customerName = (_cmbIssueCustomer.SelectedItem as Customer)?.Name ?? "Selected Customer";
+            var confirm = MessageBox.Show(
+                this,
+                $"Issue consignment with {_issueCart.Count} item(s) to {customerName}?",
+                "Confirm Consignment Issue",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Question);
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            _btnSubmitIssueConsignment.Enabled = false;
+            try
+            {
+                var requestedLines = _issueCart
+                    .Select(x => (x.ProductId, x.Quantity, x.UnitPrice))
+                    .ToList();
+
+                var issued = await _consignmentIssueService.IssueConsignmentAsync(
+                    customerId,
+                    requestedLines);
+
+                MessageBox.Show(
+                    this,
+                    $"Consignment issued successfully.\n\nReference #: {issued.ReferenceNumber}\nGoods Value: {FormatConfiguredCurrency(issued.OriginalGoodsValue)}\nFee: {FormatConfiguredCurrency(issued.ConsignmentFee)}",
+                    "Consignment Issued",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                ClearConsignmentIssueForm(clearCustomer: true);
+                LoadConsignmentIssueData();
+                LoadConsignmentCustomers();
+            }
+            catch (Exception ex)
+            {
+                var icon = ex is UnauthorizedAccessException or InvalidOperationException or ArgumentException
+                    ? MessageBoxIcon.Warning
+                    : MessageBoxIcon.Error;
+
+                MessageBox.Show(this, ex.Message, "Issue Consignment", MessageBoxButtons.OK, icon);
+            }
+            finally
+            {
+                _btnSubmitIssueConsignment.Enabled = _issueCart.Count > 0;
+            }
+        }
+
 
         private void ConfigureUsersTab(TabPage usersTab)
         {

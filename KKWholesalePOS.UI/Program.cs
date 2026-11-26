@@ -1,3 +1,4 @@
+using KKWholesalePOS.Core.Interfaces;
 using KKWholesalePOS.Core.Services;
 using KKWholesalePOS.Data;
 using KKWholesalePOS.Data.Repositories;
@@ -33,6 +34,7 @@ internal static class Program
         var inventoryService = new InventoryService(dbContext);
         var creditRepository = new CreditRepository(dbContext, inventoryService);
         var inventoryRepository = new InventoryRepository(dbContext, inventoryService);
+        var consignmentIssueRepository = new ConsignmentIssueRepository(dbContext, inventoryService);
 
         // Core services (Foundation)
         var passwordService = new PasswordService();
@@ -114,6 +116,12 @@ internal static class Program
             authorizationService,
             auditLogService);
 
+        var consignmentIssueService = new ConsignmentIssueService(
+            consignmentIssueRepository,
+            userSessionService,
+            authorizationService,
+            auditLogService);
+
         var customerManagementService = new CustomerManagementService(
             customerRepository,
             userSessionService,
@@ -149,22 +157,23 @@ internal static class Program
         if (loginForm.ShowDialog() == DialogResult.OK)
         {
             using var mainForm = new MainForm(
-    userSessionService,
-    loginService,
-    customerRepository,
-    customerManagementService,
-    reportingService,
-    regularSaleService,
-    dashboardService,
-    userManagementService,
-    roleManagementService,
-    permissionManagementService,
-    auditLogService,
-    authorizationService,
-    businessSettingsService,
-    creditService,
-    consignmentReturnService,
-    inventoryManagementService);
+                userSessionService,
+                loginService,
+                customerRepository,
+                customerManagementService,
+                reportingService,
+                regularSaleService,
+                dashboardService,
+                userManagementService,
+                roleManagementService,
+                permissionManagementService,
+                auditLogService,
+                authorizationService,
+                businessSettingsService,
+                creditService,
+                consignmentReturnService,
+                consignmentIssueService,
+                inventoryManagementService);
 
             Application.Run(mainForm);
         }
