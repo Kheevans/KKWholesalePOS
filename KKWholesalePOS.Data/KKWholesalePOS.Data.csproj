@@ -22,8 +22,4 @@
     <ProjectReference Include="..\KKWholesalePOS.Core\KKWholesalePOS.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Utilities\" />
-  </ItemGroup>
-
 </Project>
