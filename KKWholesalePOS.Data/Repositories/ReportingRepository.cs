@@ -549,6 +549,11 @@ public class ReportingRepository : IReportingRepository
         return new InventoryReportResult
         {
             GeneratedAt = DateTime.Now,
+            TotalProducts = rows.Count,
+            TotalUnitsInStock = rows.Sum(r => (long)r.AvailableStock),
+            TotalUnitsOnConsignment = rows.Sum(r => (long)r.OutstandingConsignmentQuantity),
+            LowStockProductCount = rows.Count(r => r.AvailableStock <= r.MinimumStockLevel),
+            TotalInventoryValue = rows.Sum(r => r.AvailableStock * r.UnitSellingPrice),
             Products = rows
         };
     }
